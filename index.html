@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GalvaRent – Noleggio auto semplice</title>
+  <meta name="description" content="Noleggio a lungo termine semplice e trasparente. Canone fisso, servizi inclusi. Cassina Rizzardi (CO) – Operativo in tutta Italia." />
+  <style>
+    :root{--red:#ef2b2b;--black:#0b0b0b;--white:#f7f7f7}
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:#0a0a0a;color:#eaeaea;font:16px/1.4 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial}
+    a{color:inherit;text-decoration:none}
+    img{max-width:100%;display:block}
+    .container{max-width:760px;margin:0 auto;padding:0 16px}
+    .shadow{box-shadow:0 10px 30px rgba(0,0,0,.45)}
+    .card{background:#121212;border:1px solid rgba(255,255,255,.06);border-radius:22px}
+    .btn{display:inline-block;padding:10px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:#161616;color:#fff;font-weight:600}
+    .btn-primary{background:var(--red);border-color:transparent;color:#000}
+    .btn-block{width:100%;text-align:center}
+    .badge{border-radius:14px;padding:10px;background:#0d0d0d;border:1px solid rgba(255,255,255,.06);font-size:12px}
+    .header{position:sticky;top:0;z-index:40;backdrop-filter:saturate(140%) blur(8px);background:rgba(0,0,0,.55);border-bottom:1px solid rgba(255,255,255,.06)}
+    .header-inner{display:flex;align-items:center;gap:12px;padding:10px 16px}
+    .logo-dot{height:34px;width:34px;border-radius:50%;background:var(--red);box-shadow:0 0 42px rgba(239,43,43,.45)}
+    .brand{display:flex;flex-direction:column;line-height:1}
+    .brand-title{color:var(--red);font-weight:800}
+    .brand-sub{font-size:10px;color:#a3a3a3;text-transform:uppercase}
+    .hero{padding:24px 0 8px}
+    .hero .wrap{padding:18px;border-radius:22px;background:linear-gradient(#171717,#0c0c0c);border:1px solid rgba(255,255,255,.06)}
+    .hero h1{margin:0 0 6px 0;font-size:26px;line-height:1.15}
+    .hero .accent{color:var(--red)}
+    .hero p{margin:4px 0 0;color:#c9c9c9;font-size:14px}
+    .hero .cta{display:flex;gap:8px;margin-top:14px}
+    .badges{margin-top:14px;display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+    .modal-backdrop{position:fixed;inset:0;background:rgba(0,0,0,.6);backdrop-filter:blur(2px);display:none;z-index:60}
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(92vw,720px);background:#131313;border:1px solid rgba(255,255,255,.08);border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,.55);display:none;z-index:61}
+    .modal header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid rgba(255,255,255,.06)}
+    .modal h3{margin:0;font-size:18px}
+    .modal .close{background:transparent;border:none;color:#fff;font-size:22px;line-height:1;cursor:pointer}
+    .modal .content{padding:14px 16px}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:640px){.grid-2{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <header class="header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-title">GalvaRent</span>
+        <span class="brand-sub">Noleggio a lungo termine</span>
+      </div>
+      <a class="btn btn-primary" target="_blank" href="https://wa.me/393421682857?text=Ciao%20GalvaRent!%20Vorrei%20un%20preventivo%20personalizzato%20per%20il%20noleggio.">WhatsApp</a>
+      <a class="btn" id="openQuote" href="#">Richiedi un preventivo</a>
+    </div>
+  </header>
+
+  <section id="home" class="hero">
+    <div class="container">
+      <div class="wrap card shadow">
+        <h1>Noleggio semplice, <span class="accent">zero sorprese</span></h1>
+        <p>Consulenza chiara, canone fisso e tutti i servizi inclusi. Cassina Rizzardi (CO).</p>
+      </div>
+    </div>
+  </section>
+
+  <div class="modal-backdrop" id="modalBackdrop"></div>
+  <div class="modal" id="quoteModal" role="dialog" aria-modal="true">
+    <header>
+      <h3>Richiedi un preventivo</h3>
+      <button class="close" id="closeQuote">×</button>
+    </header>
+    <div class="content">
+      <form id="quoteForm" class="contact">
+        <div class="grid-2">
+          <input class="input" name="ragione" placeholder="Nome Cognome o Ragione sociale" required />
+          <input class="input" name="cfpi" placeholder="CF o P.IVA" required />
+          <input class="input" type="tel" name="telefono" placeholder="Telefono" required />
+          <input class="input" type="email" name="email" placeholder="Email" required />
+          <input class="input" name="indirizzo" placeholder="Indirizzo di residenza" required />
+          <input class="input" name="citta" placeholder="Città" required />
+          <input class="input" name="cap" placeholder="CAP" required />
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px">
+          <button type="submit" class="btn btn-primary" style="flex:1">Invia via Email</button>
+          <button type="button" id="whatsappSend" class="btn" style="flex:1">Invia via WhatsApp</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    const modal=document.getElementById('quoteModal');
+    const backdrop=document.getElementById('modalBackdrop');
+    document.getElementById('openQuote').onclick=e=>{e.preventDefault();modal.style.display='block';backdrop.style.display='block';};
+    document.getElementById('closeQuote').onclick=()=>{modal.style.display='none';backdrop.style.display='none';};
+    backdrop.onclick=()=>{modal.style.display='none';backdrop.style.display='none';};
+
+    document.getElementById('quoteForm').onsubmit=function(e){
+      e.preventDefault();
+      const fd=new FormData(this);
+      const body=`Ciao GalvaRent,%0A%0ARichiesta preventivo:%0A%0A`+
+      `Nome/Ragione: ${fd.get('ragione')}%0A`+
+      `CF/P.IVA: ${fd.get('cfpi')}%0A`+
+      `Telefono: ${fd.get('telefono')}%0A`+
+      `Email: ${fd.get('email')}%0A`+
+      `Indirizzo: ${fd.get('indirizzo')}%0A`+
+      `Città: ${fd.get('citta')}%0ACAP: ${fd.get('cap')}%0A`;
+      window.location.href=`mailto:andrea.galvano@478rent.it?subject=Richiesta preventivo – ${fd.get('ragione')}&body=${body}`;
+    };
+
+    document.getElementById('whatsappSend').onclick=function(){
+      const fd=new FormData(document.getElementById('quoteForm'));
+      const text=`Richiesta preventivo GalvaRent:%0A`+
+      `Nome/Ragione: ${fd.get('ragione')}%0A`+
+      `CF/P.IVA: ${fd.get('cfpi')}%0A`+
+      `Telefono: ${fd.get('telefono')}%0A`+
+      `Email: ${fd.get('email')}%0A`+
+      `Indirizzo: ${fd.get('indirizzo')}%0A`+
+      `Città: ${fd.get('citta')}%0A`+
+      `CAP: ${fd.get('cap')}`;
+      window.open(`https://wa.me/393421682857?text=${text}`,'_blank');
+    };
+  </script>
+</body>
+</html>
