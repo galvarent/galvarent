@@ -49,6 +49,13 @@
 
     /* ---------- layout ---------- */
     main{padding:18px 0 60px}
+    #avviso{display:none;padding:9px 16px;font-size:13px;text-align:center;border-bottom:1px solid var(--line)}
+    #avviso.off{background:rgba(208,59,59,.14);color:#ffb3b3}
+    #avviso.ok{background:rgba(12,163,12,.14);color:#a5eda6}
+    #avviso.work{background:rgba(250,178,25,.12);color:#ffd98a}
+    #utente{font-size:12px;color:var(--muted);max-width:190px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .btn:disabled{opacity:.4;cursor:not-allowed}
+    @media(max-width:700px){#utente{display:none}}
     .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px}
     .card + .card{margin-top:14px}
     .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:2px}
@@ -174,24 +181,22 @@
         <span class="brand-title" style="font-size:22px">GalvaRent</span>
         <span class="brand-sub">Area riservata</span>
       </div>
-      <h1 id="gateTitle">Inserisci il PIN</h1>
-      <p id="gateHint">Accesso alla panoramica clienti.</p>
-      <form id="gateForm" autocomplete="off">
-        <label class="visually-hidden" for="gatePin">PIN</label>
-        <input class="input" id="gatePin" type="password" inputmode="numeric" placeholder="PIN"
-               style="width:100%;text-align:center;letter-spacing:4px;font-size:18px" required />
-        <div id="gatePin2Wrap" style="display:none;margin-top:8px">
-          <label class="visually-hidden" for="gatePin2">Conferma PIN</label>
-          <input class="input" id="gatePin2" type="password" inputmode="numeric" placeholder="Conferma PIN"
-                 style="width:100%;text-align:center;letter-spacing:4px;font-size:18px" />
-        </div>
-        <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center;margin-top:12px">
-          Entra
-        </button>
+      <h1 id="gateTitle">Accedi</h1>
+      <p id="gateHint">Email e password del tuo account GalvaRent.</p>
+      <form id="gateForm">
+        <label class="visually-hidden" for="gateEmail">Email</label>
+        <input class="input" id="gateEmail" type="email" autocomplete="username"
+               placeholder="Email" required style="width:100%" />
+        <label class="visually-hidden" for="gatePwd">Password</label>
+        <input class="input" id="gatePwd" type="password" autocomplete="current-password"
+               placeholder="Password" required style="width:100%;margin-top:8px" />
+        <button class="btn btn-primary" type="submit" id="gateBtn"
+                style="width:100%;justify-content:center;margin-top:12px">Entra</button>
         <div class="err" id="gateErr"></div>
       </form>
       <p style="margin-top:14px;font-size:11px">
-        I dati restano solo su questo dispositivo/browser. Usa “Backup” per salvarne una copia.
+        I clienti sono conservati in un archivio online riservato: li ritrovi identici
+        dal computer e dal telefono.
       </p>
     </div>
   </div>
@@ -206,12 +211,16 @@
       <button class="btn btn-primary" id="btnNew">+ Nuovo cliente</button>
       <button class="btn btn-ghost btn-sm" id="btnExport" title="Scarica i clienti in CSV">CSV</button>
       <button class="btn btn-ghost btn-sm" id="btnBackup" title="Scarica un backup completo">Backup</button>
-      <button class="btn btn-ghost btn-sm" id="btnRestore" title="Ripristina da un backup">Ripristina</button>
+      <button class="btn btn-ghost btn-sm" id="btnImport" title="Aggiunge all'archivio i clienti di un file di backup">Importa</button>
       <a class="btn btn-ghost btn-sm" href="index.html">Sito</a>
+      <span id="utente" title="Sei entrato con questo account"></span>
+      <button class="btn btn-ghost btn-sm" id="btnPwd">Password</button>
       <button class="btn btn-ghost btn-sm" id="btnLock">Esci</button>
-      <input type="file" id="restoreFile" accept="application/json" style="display:none" />
+      <input type="file" id="importFile" accept="application/json" style="display:none" />
     </div>
   </header>
+
+  <div id="avviso" role="status" aria-live="polite"></div>
 
   <main>
     <div class="container">
@@ -355,10 +364,6 @@
 /* ============================================================
    1. Costanti e stato
    ============================================================ */
-const KEY_DATA = 'galvarent_clienti_v1';
-const KEY_PIN  = 'galvarent_pin_v1';
-const KEY_SEED = 'galvarent_seed_v1';
-
 // Fasi della pipeline. `rank` serve al funnel: chi è in una fase
 // ha necessariamente attraversato quelle precedenti. `perso` esce dal funnel.
 const STATI = [
@@ -376,38 +381,25 @@ let filtri  = {period:'365', stato:'all', q:''};
 let ordine  = {col:'creato', dir:-1};
 
 /* ============================================================
-   2. Persistenza (localStorage) + utilità
+   2. Archivio online (Supabase) e sessione
+   ============================================================
+   La chiave qui sotto è la chiave pubblica del progetto: da sola non apre
+   nulla. È il database a decidere cosa mostrare, e mostra a ogni utente
+   soltanto le proprie righe (Row Level Security).
    ============================================================ */
-const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const API_URL = 'https://ggxekudzebuipdlfwdzn.supabase.co';
+const API_KEY = 'sb_publishable_dwe6gNZHieiTq5pzLprpJg_EewjU4Ak';
+
+const KEY_SESSIONE = 'galvarent_sessione_v1';
+const KEY_CACHE    = 'galvarent_cache_v1';
+const KEY_LOCALI   = 'galvarent_clienti_v1';   // archivio della versione precedente
+
+let sessione = null;     // token di accesso dell'utente
+let offline  = false;    // vera quando l'archivio non è raggiungibile
+
 const oggi = () => new Date().toISOString().slice(0, 10);
 
-function load(){
-  try{
-    const raw = localStorage.getItem(KEY_DATA);
-    clienti = raw ? JSON.parse(raw) : [];
-    if(!Array.isArray(clienti)) clienti = [];
-  }catch(e){ clienti = []; }
-  clienti = clienti.map(normalizza);
-}
-function save(){
-  try{ localStorage.setItem(KEY_DATA, JSON.stringify(clienti)); }
-  catch(e){ alert('Spazio esaurito nel browser: non è stato possibile salvare. Scarica un backup.'); }
-}
-function normalizza(c){
-  return {
-    id: c.id || uid(),
-    nome: (c.nome || '').trim(),
-    telefono: (c.telefono || '').trim(),
-    email: (c.email || '').trim(),
-    citta: (c.citta || '').trim(),
-    stato: statoById(c.stato).id,
-    richiamo: c.richiamo || '',
-    note: c.note || '',
-    creato: (c.creato || oggi()).slice(0, 10),
-    aggiornato: c.aggiornato || c.creato || new Date().toISOString()
-  };
-}
-
+/* --- utilità di testo e date --- */
 const esc = s => String(s == null ? '' : s)
   .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
   .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
@@ -418,49 +410,183 @@ function dataIt(iso){
   const [a,m,g] = iso.split('-');
   return g + ' ' + MESI[(+m) - 1] + ' ' + a.slice(2);
 }
-function giorniDa(iso){ // >0 = nel futuro, 0 = oggi, <0 = scaduto
+function giorniDa(iso){   // >0 = nel futuro, 0 = oggi, <0 = scaduto
   const d = new Date(iso + 'T00:00:00'), t = new Date(oggi() + 'T00:00:00');
   return Math.round((d - t) / 86400000);
 }
 
-/* ============================================================
-   3. Dati dimostrativi (solo al primo avvio, se non c'è nulla)
-   ============================================================ */
-function seedDemo(){
-  if(localStorage.getItem(KEY_SEED) || clienti.length) return;
-  const base = [
-    ['Rossi Trasporti Srl','3401122334','info@rossitrasporti.it','Como','preventivo',  -52, '', 'Interessata a 3 furgoni, canone 48 mesi.'],
-    ['Marco Bianchi','3387654321','m.bianchi@gmail.com','Cantù','chiuso',            -74, '', 'Contratto firmato: Fiat 500 ibrida, 36 mesi.'],
-    ['Studio Legale Verdi','3311234567','studio@verdi.it','Milano','da_richiamare',   -18,  2, 'Richiamare dopo il CdA di lunedì.'],
-    ['Elena Conti','3479988776','elena.conti@libero.it','Erba','chiamato',            -11, '', 'Valuta permuta usato.'],
-    ['Autofficina Sala','3391472583','sala@officinasala.it','Lomazzo','interessato',   -6, '', 'Arrivata dal form del sito.'],
-    ['Giulia Ferrara','3335554433','g.ferrara@outlook.it','Como','da_richiamare',      -9, -3, 'Non risponde: riprovare in pausa pranzo.'],
-    ['Nuova Edilizia Spa','3486543210','amministrazione@nuovaedilizia.it','Varese','preventivo', -33, '', 'Preventivo inviato per 2 pick-up.'],
-    ['Davide Riva','3402223344','davide.riva@gmail.com','Cassina Rizzardi','perso',    -45, '', 'Ha scelto acquisto diretto.'],
-    ['Sara Moretti','3466677889','sara.moretti@gmail.com','Lecco','chiuso',           -120, '', 'Rinnovo previsto fra 30 mesi.'],
-    ['Bar Centrale snc','3451239876','barcentrale@pec.it','Appiano Gentile','interessato', -3, '', 'Richiesta via WhatsApp.'],
-    ['Luca Pozzi','3494561237','luca.pozzi@gmail.com','Como','chiamato',              -27, '', 'Vuole confronto tra due modelli.'],
-    ['Immobiliare Lario','3357778899','info@immobiliarelario.it','Como','da_richiamare',-14, 0, 'Richiamare oggi per firma.'],
-    ['Chiara Galli','3428887766','chiara.galli@gmail.com','Olgiate','interessato',     -1, '', 'Primo contatto in fiera.'],
-    ['Tecno Impianti Srl','3383334455','tecno@impianti.it','Saronno','chiuso',        -160, '', 'Due contratti attivi.'],
-    ['Paolo Fumagalli','3471112233','p.fumagalli@gmail.com','Mariano Comense','perso',-88, '', 'Budget non compatibile.'],
-    ['Ristorante Il Faro','3405556677','ilfaro@gmail.com','Cernobbio','preventivo',   -21, '', 'In attesa di risposta sul canone.'],
-    ['Anna Villa','3462224466','anna.villa@gmail.com','Como','chiamato',              -60, '', 'Ricontattare a fine anno.'],
-    ['Logistica Brianza','3399998877','ordini@logisticabrianza.it','Monza','interessato', -2, '', 'Flotta di 5 mezzi.']
-  ];
-  const ms = 86400000;
-  clienti = base.map(r => normalizza({
-    nome:r[0], telefono:r[1], email:r[2], citta:r[3], stato:r[4],
-    creato: new Date(Date.now() + r[5]*ms).toISOString().slice(0,10),
-    richiamo: r[6] === '' ? '' : new Date(Date.now() + r[6]*ms).toISOString().slice(0,10),
-    note:r[7]
-  }));
-  localStorage.setItem(KEY_SEED, '1');
-  save();
+/* --- sessione --- */
+function leggiSessione(){
+  try{ return JSON.parse(localStorage.getItem(KEY_SESSIONE) || 'null'); }catch(e){ return null; }
+}
+function scriviSessione(s){
+  sessione = s;
+  try{
+    if(s) localStorage.setItem(KEY_SESSIONE, JSON.stringify(s));
+    else localStorage.removeItem(KEY_SESSIONE);
+  }catch(e){}
+}
+function memorizza(d){
+  scriviSessione({
+    access_token: d.access_token,
+    refresh_token: d.refresh_token,
+    scade: Date.now() + (d.expires_in ? d.expires_in * 1000 : 3600000) - 60000,
+    email: (d.user && d.user.email) || (sessione && sessione.email) || ''
+  });
+}
+function intestazioni(extra){
+  return Object.assign({
+    'apikey': API_KEY,
+    'Authorization': 'Bearer ' + (sessione ? sessione.access_token : ''),
+    'Content-Type': 'application/json'
+  }, extra || {});
 }
 
+/* --- accesso --- */
+async function chiamataAuth(percorso, corpo){
+  let r;
+  try{
+    r = await fetch(API_URL + percorso, {
+      method: 'POST',
+      headers: {'apikey': API_KEY, 'Content-Type': 'application/json'},
+      body: JSON.stringify(corpo)
+    });
+  }catch(e){ throw Object.assign(new Error('rete'), {rete: true}); }
+  const dati = await r.json().catch(() => ({}));
+  if(!r.ok) throw Object.assign(new Error(dati.error_description || dati.msg || dati.message || 'accesso non riuscito'),
+                                {stato: r.status});
+  return dati;
+}
+async function entra(email, password){
+  memorizza(await chiamataAuth('/auth/v1/token?grant_type=password', {email, password}));
+}
+async function rinnova(){
+  if(!sessione || !sessione.refresh_token) throw new Error('sessione assente');
+  memorizza(await chiamataAuth('/auth/v1/token?grant_type=refresh_token', {refresh_token: sessione.refresh_token}));
+}
+async function esci(){
+  try{ await fetch(API_URL + '/auth/v1/logout', {method: 'POST', headers: intestazioni()}); }catch(e){}
+  scriviSessione(null);
+  try{ localStorage.removeItem(KEY_CACHE); }catch(e){}
+}
+
+/* --- chiamate all'archivio: token rinnovato e richiesta ripetuta una volta --- */
+async function api(percorso, opzioni, ritentata){
+  if(!ritentata && sessione && sessione.scade && Date.now() > sessione.scade){
+    try{ await rinnova(); }catch(e){}
+  }
+  const o = Object.assign({}, opzioni);
+  o.headers = intestazioni(o.headers);
+  let r;
+  try{
+    r = await fetch(API_URL + '/rest/v1' + percorso, o);
+  }catch(e){ throw Object.assign(new Error('rete'), {rete: true}); }
+  if(r.status === 401 && !ritentata){
+    await rinnova();
+    return api(percorso, opzioni, true);
+  }
+  if(!r.ok){
+    const t = await r.text().catch(() => '');
+    throw new Error('archivio ' + r.status + ' ' + t.slice(0, 160));
+  }
+  return r.status === 204 ? null : r.json().catch(() => null);
+}
+
+/* --- lettura e scrittura dei clienti --- */
+function normalizza(c){
+  return {
+    id: c.id || null,
+    nome: (c.nome || '').trim(),
+    telefono: (c.telefono || '').trim(),
+    email: (c.email || '').trim(),
+    citta: (c.citta || '').trim(),
+    stato: statoById(c.stato).id,
+    richiamo: c.richiamo || '',
+    note: c.note || '',
+    creato: (c.creato || oggi()).slice(0, 10),
+    aggiornato: c.aggiornato || null
+  };
+}
+// Il campo `id` lo assegna il database; `richiamo` vuoto va inviato come nullo.
+function perArchivio(c){
+  return {
+    nome: c.nome, telefono: c.telefono, email: c.email, citta: c.citta,
+    stato: c.stato, richiamo: c.richiamo || null, note: c.note, creato: c.creato
+  };
+}
+async function scaricaClienti(){
+  const righe = await api('/clienti?select=*&order=creato.desc');
+  clienti = (righe || []).map(normalizza);
+  offline = false;
+  try{ localStorage.setItem(KEY_CACHE, JSON.stringify(clienti)); }catch(e){}
+}
+function leggiCache(){
+  try{ clienti = (JSON.parse(localStorage.getItem(KEY_CACHE) || '[]')).map(normalizza); }
+  catch(e){ clienti = []; }
+}
+async function salvaCliente(c){
+  const corpo = perArchivio(c);
+  if(c.id) return api('/clienti?id=eq.' + encodeURIComponent(c.id),
+                      {method: 'PATCH', body: JSON.stringify(corpo)});
+  return api('/clienti', {method: 'POST', body: JSON.stringify(corpo)});
+}
+async function eliminaCliente(id){
+  return api('/clienti?id=eq.' + encodeURIComponent(id), {method: 'DELETE'});
+}
+
+/* --- avviso in cima alla pagina --- */
+let tAvviso;
+function segnala(testo, tipo){
+  const el = document.getElementById('avviso');
+  clearTimeout(tAvviso);
+  if(!testo){ el.style.display = 'none'; return; }
+  el.className = tipo || '';
+  el.textContent = testo;
+  el.style.display = 'block';
+  if(tipo === 'ok') tAvviso = setTimeout(() => { el.style.display = 'none'; }, 3000);
+}
+
+/* --- scarica i clienti, con ripiego sull'ultima copia locale --- */
+async function aggiorna(){
+  try{
+    await scaricaClienti();
+    if(offline === false) segnala('');
+  }catch(e){
+    if(!e.rete) throw e;
+    offline = true;
+    leggiCache();
+    segnala('Sei senza connessione: vedi l\'ultima copia scaricata e non puoi modificare i clienti.', 'off');
+  }
+  aggiornaComandi();
+  render();
+}
+function aggiornaComandi(){
+  document.getElementById('btnNew').disabled = offline;
+  document.getElementById('btnImport').disabled = offline;
+}
+
+/* --- trasferimento dei clienti rimasti sul dispositivo --- */
+async function proponiTrasferimento(){
+  if(offline || sessionStorage.getItem('galvarent_trasferimento_chiesto')) return;
+  let locali = [];
+  try{ locali = JSON.parse(localStorage.getItem(KEY_LOCALI) || '[]'); }catch(e){}
+  if(!Array.isArray(locali) || !locali.length) return;
+  sessionStorage.setItem('galvarent_trasferimento_chiesto', '1');
+  if(!confirm('Su questo dispositivo ci sono ' + locali.length + ' clienti salvati dalla versione precedente.\n\n' +
+              'Vuoi caricarli nell\'archivio online, così li ritrovi anche dal telefono?')) return;
+  segnala('Trasferimento in corso…', 'work');
+  await api('/clienti', {method: 'POST', body: JSON.stringify(locali.map(c => perArchivio(normalizza(c))))});
+  try{
+    localStorage.setItem('galvarent_trasferiti_il', new Date().toISOString());
+    localStorage.removeItem(KEY_LOCALI);
+  }catch(e){}
+  await aggiorna();                    // ridisegna la pagina con i clienti trasferiti
+  segnala(locali.length + ' clienti trasferiti nell\'archivio online.', 'ok');
+}
+
+
 /* ============================================================
-   4. Grafici (SVG generato a mano, nessuna libreria)
+   3. Grafici (SVG generato a mano, nessuna libreria)
    - una sola tinta per serie: il confronto è di grandezza, non di identità
    - etichette dirette su ogni barra + tooltip al passaggio del mouse
    ============================================================ */
@@ -484,7 +610,9 @@ function tickValues(max){
   if(max <= 0) return [0, 1];
   const raw = max / 4;
   const mag = Math.pow(10, Math.floor(Math.log10(raw)));
-  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || mag * 10;
+  // i valori sono conteggi di persone: le tacche restano numeri interi
+  const passi = [1, 2, 2.5, 3, 5, 10].map(m => m * mag).filter(v => Number.isInteger(v) && v >= 1);
+  const step = passi.find(v => v >= raw) || passi[passi.length - 1] || 1;
   const top = Math.ceil(max / step) * step;   // la scala arriva sempre sopra il dato massimo
   const out = [];
   for(let v = 0; v <= top + 1e-9; v += step) out.push(Math.round(v * 100) / 100);
@@ -603,7 +731,7 @@ function renderFunnel(stadi){
 })();
 
 /* ============================================================
-   5. Calcolo dei dati mostrati
+   4. Calcolo dei dati mostrati
    ============================================================ */
 function periodoGiorni(){ return filtri.period === 'all' ? null : parseInt(filtri.period, 10); }
 
@@ -673,7 +801,7 @@ function calcolaFunnel(rows){
 }
 
 /* ============================================================
-   6. Render della pagina
+   5. Render della pagina
    ============================================================ */
 function render(){
   const rowsG = perGrafici();
@@ -787,7 +915,7 @@ function confronta(a, b){
 }
 
 /* ============================================================
-   7. Interazioni: filtri, modale, esportazioni
+   6. Interazioni: filtri, modale, esportazioni
    ============================================================ */
 const backdrop = document.getElementById('backdrop');
 const modal    = document.getElementById('clientModal');
@@ -819,31 +947,50 @@ function apriModale(id){
 }
 function chiudiModale(){ modal.style.display = 'none'; backdrop.style.display = 'none'; }
 
-form.addEventListener('submit', e => {
+form.addEventListener('submit', async e => {
   e.preventDefault();
-  const dati = {
-    id: form.id.value || uid(),
+  if(offline){ alert('Senza connessione non è possibile salvare.'); return; }
+  const btn = form.querySelector('button[type=submit]');
+  const dati = normalizza({
+    id: form.id.value || null,
     nome: form.nome.value, telefono: form.telefono.value, email: form.email.value,
     citta: form.citta.value, stato: form.stato.value, richiamo: form.richiamo.value,
-    creato: form.creato.value || oggi(), note: form.note.value,
-    aggiornato: new Date().toISOString()
-  };
-  const i = clienti.findIndex(c => c.id === dati.id);
-  if(i >= 0) clienti[i] = normalizza(dati); else clienti.unshift(normalizza(dati));
-  save(); chiudiModale(); render();
+    creato: form.creato.value || oggi(), note: form.note.value
+  });
+  btn.disabled = true; btn.textContent = 'Salvataggio…';
+  try{
+    await salvaCliente(dati);
+    chiudiModale();
+    await aggiorna();                 // ricarica dall'archivio: la lista resta quella vera
+    segnala('Cliente salvato.', 'ok');
+  }catch(ex){
+    alert('Salvataggio non riuscito: ' + (ex.rete ? 'nessuna connessione.' : ex.message));
+  }finally{
+    btn.disabled = false; btn.textContent = 'Salva';
+  }
 });
-document.getElementById('btnDelete').onclick = () => {
+document.getElementById('btnDelete').onclick = async () => {
   const id = form.id.value;
   const c = clienti.find(x => x.id === id);
   if(!c || !confirm(`Eliminare definitivamente “${c.nome}”?`)) return;
-  clienti = clienti.filter(x => x.id !== id);
-  save(); chiudiModale(); render();
+  if(offline){ alert('Senza connessione non è possibile eliminare.'); return; }
+  try{
+    await eliminaCliente(id);
+    chiudiModale();
+    await aggiorna();
+    segnala('Cliente eliminato.', 'ok');
+  }catch(ex){
+    alert('Eliminazione non riuscita: ' + (ex.rete ? 'nessuna connessione.' : ex.message));
+  }
 };
 document.getElementById('modalClose').onclick = chiudiModale;
 backdrop.onclick = chiudiModale;
 document.addEventListener('keydown', e => { if(e.key === 'Escape') chiudiModale(); });
 
-document.getElementById('btnNew').onclick = () => apriModale(null);
+document.getElementById('btnNew').onclick = () => {
+  if(offline){ alert('Senza connessione non è possibile aggiungere clienti.'); return; }
+  apriModale(null);
+};
 document.getElementById('tbody').addEventListener('click', e => {
   const tr = e.target.closest('tr[data-id]');
   if(tr) apriModale(tr.dataset.id);
@@ -887,20 +1034,25 @@ document.getElementById('btnExport').onclick = () => {
 document.getElementById('btnBackup').onclick = () =>
   scarica(`galvarent-backup-${oggi()}.json`, JSON.stringify({versione:1, esportato:new Date().toISOString(), clienti}, null, 2),
           'application/json');
-document.getElementById('btnRestore').onclick = () => document.getElementById('restoreFile').click();
-document.getElementById('restoreFile').onchange = e => {
+document.getElementById('btnImport').onclick = () => document.getElementById('importFile').click();
+document.getElementById('importFile').onchange = e => {
   const file = e.target.files[0];
   if(!file) return;
   const fr = new FileReader();
-  fr.onload = () => {
+  fr.onload = async () => {
     try{
       const dati = JSON.parse(fr.result);
       const lista = Array.isArray(dati) ? dati : dati.clienti;
-      if(!Array.isArray(lista)) throw new Error('formato');
-      if(!confirm(`Il backup contiene ${lista.length} clienti e sostituirà i dati attuali (${clienti.length}). Procedere?`)) return;
-      clienti = lista.map(normalizza); save(); render();
-    }catch(err){ alert('File di backup non valido.'); }
-    finally{ e.target.value = ''; }
+      if(!Array.isArray(lista) || !lista.length) throw new Error('formato');
+      if(!confirm(`Il file contiene ${lista.length} clienti: verranno aggiunti all'archivio ` +
+                  `(i ${clienti.length} attuali restano dove sono). Procedere?`)) return;
+      segnala('Importazione in corso…', 'work');
+      await api('/clienti', {method: 'POST', body: JSON.stringify(lista.map(c => perArchivio(normalizza(c))))});
+      await aggiorna();
+      segnala(lista.length + ' clienti importati.', 'ok');
+    }catch(err){
+      segnala('Importazione non riuscita: ' + (err.message === 'formato' ? 'file non valido.' : err.message), 'off');
+    }finally{ e.target.value = ''; }
   };
   fr.readAsText(file);
 };
@@ -910,59 +1062,93 @@ let tResize;
 window.addEventListener('resize', () => { clearTimeout(tResize); tResize = setTimeout(render, 150); });
 
 /* ============================================================
-   8. Accesso con PIN (protezione locale, non sostituisce un login server)
+   7. Accesso con email e password
    ============================================================ */
 const gate = document.getElementById('gate');
-async function hash(txt){
-  try{
-    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('gr:' + txt));
-    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
-  }catch(e){                                   // browser senza crypto.subtle (es. http non sicuro)
-    let h = 5381;
-    for(const ch of 'gr:' + txt) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
-    return 'f' + h.toString(16);
-  }
+
+function mostraGate(messaggio){
+  gate.style.display = 'flex';
+  document.getElementById('gateErr').textContent = messaggio || '';
+  setTimeout(() => {
+    const e = document.getElementById('gateEmail');
+    (e.value ? document.getElementById('gatePwd') : e).focus();
+  }, 60);
 }
-function sbloccato(){
+function spiegaErrore(ex){
+  if(ex && ex.rete) return 'Nessuna connessione a internet: riprova fra poco.';
+  if(ex && ex.stato === 400) return 'Email o password non corretti.';
+  if(ex && ex.stato === 429) return 'Troppi tentativi: attendi qualche minuto.';
+  return 'Accesso non riuscito. ' + ((ex && ex.message) || '');
+}
+
+async function dopoAccesso(){
   gate.style.display = 'none';
-  sessionStorage.setItem('galvarent_unlocked', '1');
-  seedDemo(); popolaSelect(); render();
+  document.getElementById('utente').textContent = (sessione && sessione.email) || '';
+  popolaSelect();
+  await aggiorna();
+  try{ await proponiTrasferimento(); }
+  catch(e){ segnala('Trasferimento non riuscito: ' + e.message, 'off'); }
 }
-function avviaGate(){
-  const impostato = localStorage.getItem(KEY_PIN);
-  if(!impostato){
-    document.getElementById('gateTitle').textContent = 'Imposta un PIN';
-    document.getElementById('gateHint').textContent  = 'Primo accesso: scegli un PIN di almeno 4 cifre.';
-    document.getElementById('gatePin2Wrap').style.display = 'block';
-  }
-  if(sessionStorage.getItem('galvarent_unlocked') === '1' && impostato){ sbloccato(); return; }
-  setTimeout(() => document.getElementById('gatePin').focus(), 60);
-}
+
 document.getElementById('gateForm').addEventListener('submit', async e => {
   e.preventDefault();
+  const btn = document.getElementById('gateBtn');
   const err = document.getElementById('gateErr');
-  const pin = document.getElementById('gatePin').value.trim();
-  const salvato = localStorage.getItem(KEY_PIN);
-  if(!salvato){
-    const pin2 = document.getElementById('gatePin2').value.trim();
-    if(pin.length < 4){ err.textContent = 'Il PIN deve avere almeno 4 caratteri.'; return; }
-    if(pin !== pin2){ err.textContent = 'I due PIN non coincidono.'; return; }
-    localStorage.setItem(KEY_PIN, await hash(pin));
-    err.textContent = ''; sbloccato(); return;
+  const email = document.getElementById('gateEmail').value.trim();
+  const pwd   = document.getElementById('gatePwd').value;
+  btn.disabled = true; btn.textContent = 'Attendi…'; err.textContent = '';
+  try{
+    await entra(email, pwd);
+    document.getElementById('gatePwd').value = '';
+    await dopoAccesso();
+  }catch(ex){
+    err.textContent = spiegaErrore(ex);
+  }finally{
+    btn.disabled = false; btn.textContent = 'Entra';
   }
-  if(await hash(pin) === salvato){ err.textContent = ''; sbloccato(); }
-  else { err.textContent = 'PIN errato.'; document.getElementById('gatePin').select(); }
 });
-document.getElementById('btnLock').onclick = () => {
-  sessionStorage.removeItem('galvarent_unlocked');
+
+document.getElementById('btnLock').onclick = async () => {
+  if(!confirm('Vuoi uscire? Per rientrare servono di nuovo email e password.')) return;
+  await esci();
   location.reload();
 };
 
+document.getElementById('btnPwd').onclick = async () => {
+  const nuova = prompt('Nuova password (almeno 8 caratteri):');
+  if(nuova === null) return;
+  if(nuova.trim().length < 8){ alert('Password troppo corta: servono almeno 8 caratteri.'); return; }
+  segnala('Aggiornamento password…', 'work');
+  try{
+    const r = await fetch(API_URL + '/auth/v1/user', {
+      method: 'PUT', headers: intestazioni(), body: JSON.stringify({password: nuova})
+    });
+    const d = await r.json().catch(() => ({}));
+    if(!r.ok) throw new Error(d.msg || d.message || ('errore ' + r.status));
+    segnala('Password aggiornata.', 'ok');
+  }catch(e){
+    segnala('Password non cambiata: ' + e.message, 'off');
+  }
+};
+
 /* ============================================================
-   9. Avvio
+   8. Avvio
    ============================================================ */
-load();
-avviaGate();
+sessione = leggiSessione();
+if(sessione && sessione.access_token){
+  gate.style.display = 'none';                 // sessione già valida: nessun lampo di login
+  dopoAccesso().catch(async e => {
+    if(e && e.rete){                           // offline all'avvio: mostra comunque la copia locale
+      offline = true; leggiCache(); popolaSelect(); aggiornaComandi(); render();
+      segnala('Sei senza connessione: vedi l\'ultima copia scaricata.', 'off');
+      return;
+    }
+    scriviSessione(null);
+    mostraGate('La sessione è scaduta: accedi di nuovo.');
+  });
+}else{
+  mostraGate();
+}
 
 })();
 </script>
