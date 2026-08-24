@@ -89,28 +89,30 @@
   </div>
 
   <script>
-    // Ogni richiesta di preventivo diventa un cliente "Interessato" nella
-    // panoramica (dashboard.html). Stessa chiave di storage della dashboard.
-    const CLIENTI_KEY='galvarent_clienti_v1';
+    // Ogni richiesta di preventivo diventa un contatto "Interessato" nella
+    // panoramica (dashboard.html). Il sito non ha accesso alla tabella: passa
+    // da una funzione del database che decide lei cosa scrivere.
+    const API_URL='https://ggxekudzebuipdlfwdzn.supabase.co';
+    const API_KEY='sb_publishable_dwe6gNZHieiTq5pzLprpJg_EewjU4Ak';
     function salvaLead(fd){
-      try{
-        const lista=JSON.parse(localStorage.getItem(CLIENTI_KEY)||'[]');
-        const nome=(fd.get('ragione')||'').trim();
-        const tel=(fd.get('telefono')||'').trim();
-        if(!nome&&!tel) return;
-        const gia=lista.some(c=>c&&((tel&&c.telefono===tel)||(nome&&c.nome===nome)));
-        if(gia) return;
-        const oggi=new Date().toISOString().slice(0,10);
-        lista.unshift({
-          id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
-          nome:nome, telefono:tel, email:(fd.get('email')||'').trim(),
-          citta:(fd.get('citta')||'').trim(), stato:'interessato', richiamo:'',
-          note:'Richiesta preventivo dal sito. CF/P.IVA: '+(fd.get('cfpi')||'—')+
-               '. Indirizzo: '+(fd.get('indirizzo')||'—')+' '+(fd.get('cap')||''),
-          creato:oggi, aggiornato:new Date().toISOString()
-        });
-        localStorage.setItem(CLIENTI_KEY,JSON.stringify(lista));
-      }catch(e){/* storage non disponibile: la richiesta parte comunque */}
+      const nome=(fd.get('ragione')||'').trim();
+      const tel=(fd.get('telefono')||'').trim();
+      if(!nome&&!tel) return Promise.resolve();
+      const note='Richiesta dal sito. CF/P.IVA: '+(fd.get('cfpi')||'—')+
+                 '. Indirizzo: '+(fd.get('indirizzo')||'—')+' '+(fd.get('cap')||'');
+      // Se la chiamata non riesce non blocchiamo nulla: la richiesta parte
+      // comunque per email o WhatsApp, che restano il canale principale.
+      return fetch(API_URL+'/rest/v1/rpc/richiesta_dal_sito',{
+        method:'POST',
+        keepalive:true,          // l'invio si completa anche se si apre subito la mail
+        headers:{'apikey':API_KEY,'Content-Type':'application/json'},
+        body:JSON.stringify({
+          p_nome:nome, p_telefono:tel,
+          p_email:(fd.get('email')||'').trim(),
+          p_citta:(fd.get('citta')||'').trim(),
+          p_note:note
+        })
+      }).catch(function(){});
     }
 
     const modal=document.getElementById('quoteModal');
