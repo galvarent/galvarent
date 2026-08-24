@@ -50,6 +50,7 @@
       </div>
       <a class="btn btn-primary" target="_blank" href="https://wa.me/393421682857?text=Ciao%20GalvaRent!%20Vorrei%20un%20preventivo%20personalizzato%20per%20il%20noleggio.">WhatsApp</a>
       <a class="btn" id="openQuote" href="#">Richiedi un preventivo</a>
+      <a class="btn" href="dashboard.html" title="Panoramica clienti" style="font-size:12px;opacity:.7">Area riservata</a>
     </div>
   </header>
 
@@ -88,6 +89,30 @@
   </div>
 
   <script>
+    // Ogni richiesta di preventivo diventa un cliente "Interessato" nella
+    // panoramica (dashboard.html). Stessa chiave di storage della dashboard.
+    const CLIENTI_KEY='galvarent_clienti_v1';
+    function salvaLead(fd){
+      try{
+        const lista=JSON.parse(localStorage.getItem(CLIENTI_KEY)||'[]');
+        const nome=(fd.get('ragione')||'').trim();
+        const tel=(fd.get('telefono')||'').trim();
+        if(!nome&&!tel) return;
+        const gia=lista.some(c=>c&&((tel&&c.telefono===tel)||(nome&&c.nome===nome)));
+        if(gia) return;
+        const oggi=new Date().toISOString().slice(0,10);
+        lista.unshift({
+          id:Date.now().toString(36)+Math.random().toString(36).slice(2,7),
+          nome:nome, telefono:tel, email:(fd.get('email')||'').trim(),
+          citta:(fd.get('citta')||'').trim(), stato:'interessato', richiamo:'',
+          note:'Richiesta preventivo dal sito. CF/P.IVA: '+(fd.get('cfpi')||'—')+
+               '. Indirizzo: '+(fd.get('indirizzo')||'—')+' '+(fd.get('cap')||''),
+          creato:oggi, aggiornato:new Date().toISOString()
+        });
+        localStorage.setItem(CLIENTI_KEY,JSON.stringify(lista));
+      }catch(e){/* storage non disponibile: la richiesta parte comunque */}
+    }
+
     const modal=document.getElementById('quoteModal');
     const backdrop=document.getElementById('modalBackdrop');
     document.getElementById('openQuote').onclick=e=>{e.preventDefault();modal.style.display='block';backdrop.style.display='block';};
@@ -97,6 +122,7 @@
     document.getElementById('quoteForm').onsubmit=function(e){
       e.preventDefault();
       const fd=new FormData(this);
+      salvaLead(fd);
       const body=`Ciao GalvaRent,%0A%0ARichiesta preventivo:%0A%0A`+
       `Nome/Ragione: ${fd.get('ragione')}%0A`+
       `CF/P.IVA: ${fd.get('cfpi')}%0A`+
@@ -109,6 +135,7 @@
 
     document.getElementById('whatsappSend').onclick=function(){
       const fd=new FormData(document.getElementById('quoteForm'));
+      salvaLead(fd);
       const text=`Richiesta preventivo GalvaRent:%0A`+
       `Nome/Ragione: ${fd.get('ragione')}%0A`+
       `CF/P.IVA: ${fd.get('cfpi')}%0A`+
