@@ -20,7 +20,7 @@
       /* serie dati: una sola tinta (magnitudine) */
       --series:#3987e5;
       /* rampa ordinale funnel (chiaro -> scuro, validata su superficie scura) */
-      --step-1:#9ec5f4;--step-2:#5598e7;--step-3:#2a78d6;--step-4:#1c5cab;
+      --step-1:#b7d3f6;--step-2:#86b6ef;--step-3:#5598e7;--step-4:#2a78d6;--step-5:#1c5cab;
       /* stati operativi: sempre accompagnati da etichetta e icona */
       --good:#0ca30c;--warning:#fab219;--critical:#d03b3b;--info:#3987e5;--violet:#9085e9;--aqua:#199e70;
     }
@@ -211,12 +211,12 @@
       <button class="btn btn-primary" id="btnNew">+ Nuovo cliente</button>
       <button class="btn btn-ghost btn-sm" id="btnExport" title="Scarica i clienti in CSV">CSV</button>
       <button class="btn btn-ghost btn-sm" id="btnBackup" title="Scarica un backup completo">Backup</button>
-      <button class="btn btn-ghost btn-sm" id="btnImport" title="Aggiunge all'archivio i clienti di un file di backup">Importa</button>
+      <button class="btn btn-ghost btn-sm" id="btnImport" title="Aggiunge all'archivio i contatti di un file CSV o di un backup">Importa</button>
       <a class="btn btn-ghost btn-sm" href="index.html">Sito</a>
       <span id="utente" title="Sei entrato con questo account"></span>
       <button class="btn btn-ghost btn-sm" id="btnPwd">Password</button>
       <button class="btn btn-ghost btn-sm" id="btnLock">Esci</button>
-      <input type="file" id="importFile" accept="application/json" style="display:none" />
+      <input type="file" id="importFile" accept=".csv,text/csv,application/json,.json" style="display:none" />
     </div>
   </header>
 
@@ -236,6 +236,9 @@
         <select class="input" id="fStato" aria-label="Filtra per stato">
           <option value="all">Tutti gli stati</option>
         </select>
+        <select class="input" id="fCategoria" aria-label="Filtra per categoria">
+          <option value="all">Tutte le categorie</option>
+        </select>
         <input class="input search" id="fSearch" type="search" placeholder="Cerca nome, telefono, città…" />
         <span class="card-sub" id="filterCount" style="margin:0"></span>
       </div>
@@ -246,7 +249,7 @@
       <!-- grafici -->
       <div class="grid-2">
         <section class="card">
-          <div class="card-head"><h2 class="card-title">Clienti per stato</h2></div>
+          <div class="card-head"><h2 class="card-title">Contatti per stato</h2></div>
           <p class="card-sub" id="statoSub">Quanti clienti ci sono in ogni fase.</p>
           <div id="chartStato"></div>
         </section>
@@ -260,7 +263,7 @@
 
       <section class="card">
         <div class="card-head"><h2 class="card-title">Funnel di conversione</h2></div>
-        <p class="card-sub" id="funnelSub">Dal primo contatto al contratto firmato.</p>
+        <p class="card-sub" id="funnelSub">Dal primo contatto al contratto firmato. Chi ha chiuso negativo resta fra i contattati.</p>
         <div id="chartFunnel"></div>
       </section>
 
@@ -288,6 +291,7 @@
                 <th data-sort="nome">Cliente</th>
                 <th data-sort="contatti">Contatti</th>
                 <th data-sort="citta">Città</th>
+                <th data-sort="categoria">Categoria</th>
                 <th data-sort="stato">Stato</th>
                 <th data-sort="richiamo">Richiamo</th>
                 <th data-sort="creato">Inserito</th>
@@ -317,8 +321,17 @@
         <input type="hidden" name="id" />
         <div class="form-grid">
           <div class="field full">
-            <label for="f-nome">Nome / Ragione sociale</label>
+            <label for="f-nome">Azienda / Ragione sociale</label>
             <input class="input" id="f-nome" name="nome" required />
+          </div>
+          <div class="field">
+            <label for="f-referente">Referente</label>
+            <input class="input" id="f-referente" name="referente" />
+          </div>
+          <div class="field">
+            <label for="f-categoria">Categoria</label>
+            <input class="input" id="f-categoria" name="categoria" list="listaCategorie" />
+            <datalist id="listaCategorie"></datalist>
           </div>
           <div class="field">
             <label for="f-telefono">Telefono</label>
@@ -331,6 +344,34 @@
           <div class="field">
             <label for="f-citta">Città</label>
             <input class="input" id="f-citta" name="citta" />
+          </div>
+          <div class="field">
+            <label for="f-sito">Sito web</label>
+            <input class="input" id="f-sito" name="sito" placeholder="https://" />
+          </div>
+          <div class="field">
+            <label for="f-partita_iva">Partita IVA</label>
+            <input class="input" id="f-partita_iva" name="partita_iva" />
+          </div>
+          <div class="field">
+            <label for="f-codice_fiscale">Codice fiscale</label>
+            <input class="input" id="f-codice_fiscale" name="codice_fiscale" />
+          </div>
+          <div class="field">
+            <label for="f-tipo_veicolo">Tipo veicolo</label>
+            <input class="input" id="f-tipo_veicolo" name="tipo_veicolo" list="listaVeicoli" />
+            <datalist id="listaVeicoli">
+              <option value="Noleggio"></option><option value="Acquisto"></option>
+              <option value="Leasing"></option><option value="Non so"></option>
+            </datalist>
+          </div>
+          <div class="field">
+            <label for="f-n_veicoli">N. veicoli</label>
+            <input class="input" id="f-n_veicoli" name="n_veicoli" type="number" min="0" />
+          </div>
+          <div class="field">
+            <label for="f-km_annui">Km annui</label>
+            <input class="input" id="f-km_annui" name="km_annui" type="number" min="0" step="1000" />
           </div>
           <div class="field">
             <label for="f-stato">Stato</label>
@@ -367,17 +408,30 @@
 // Fasi della pipeline. `rank` serve al funnel: chi è in una fase
 // ha necessariamente attraversato quelle precedenti. `perso` esce dal funnel.
 const STATI = [
-  {id:'interessato',  label:'Interessato',       color:'var(--info)',     icon:'●', rank:0},
-  {id:'chiamato',     label:'Chiamato',          color:'var(--violet)',   icon:'✆', rank:1},
-  {id:'da_richiamare',label:'Da richiamare',     color:'var(--warning)',  icon:'⏱', rank:1},
-  {id:'preventivo',   label:'Preventivo inviato',color:'var(--aqua)',     icon:'✉', rank:2},
-  {id:'chiuso',       label:'Contratto chiuso',  color:'var(--good)',     icon:'✓', rank:3},
-  {id:'perso',        label:'Non interessato',   color:'var(--critical)', icon:'✕', rank:-1}
+  {id:'da_chiamare', label:'Da chiamare',           color:'var(--info)',     icon:'●', rank:0},
+  {id:'chiamato',    label:'Chiamato – richiamare', color:'var(--warning)',  icon:'⏱', rank:1},
+  {id:'interesse',   label:'Interesse',             color:'var(--violet)',   icon:'★', rank:2},
+  {id:'mail_inviata',label:'Mail inviata',          color:'var(--aqua)',     icon:'✉', rank:3},
+  {id:'contratto',   label:'Contratto chiuso',      color:'var(--good)',     icon:'✓', rank:4},
+  {id:'perso',       label:'Chiuso negativo',       color:'var(--critical)', icon:'✕', rank:-1}
 ];
+
+// Riconosce uno stato scritto a mano nel CSV: etichetta, sinonimo o codice interno.
+const SINONIMI_STATO = {
+  'da chiamare':'da_chiamare', 'da contattare':'da_chiamare', 'nuovo':'da_chiamare',
+  'chiamato richiamare':'chiamato', 'chiamato':'chiamato', 'richiamare':'chiamato',
+  'da richiamare':'chiamato', 'richiamato':'chiamato',
+  'interesse':'interesse', 'interessato':'interesse', 'interessata':'interesse',
+  'mail inviata':'mail_inviata', 'email inviata':'mail_inviata',
+  'preventivo':'mail_inviata', 'preventivo inviato':'mail_inviata', 'offerta inviata':'mail_inviata',
+  'contratto':'contratto', 'contratto chiuso':'contratto', 'chiuso positivo':'contratto',
+  'chiuso':'contratto', 'venduto':'contratto',
+  'chiuso negativo':'perso', 'perso':'perso', 'non interessato':'perso', 'negativo':'perso'
+};
 const statoById = id => STATI.find(s => s.id === id) || STATI[0];
 
 let clienti = [];
-let filtri  = {period:'365', stato:'all', q:''};
+let filtri  = {period:'365', stato:'all', categoria:'all', q:''};
 let ordine  = {col:'creato', dir:-1};
 
 /* ============================================================
@@ -493,16 +547,29 @@ async function api(percorso, opzioni, ritentata){
 }
 
 /* --- lettura e scrittura dei clienti --- */
+const testo = v => String(v == null ? '' : v).trim();
+const intero = v => {
+  const n = parseInt(String(v == null ? '' : v).replace(/[^\d-]/g, ''), 10);
+  return Number.isFinite(n) ? n : null;
+};
 function normalizza(c){
   return {
     id: c.id || null,
-    nome: (c.nome || '').trim(),
-    telefono: (c.telefono || '').trim(),
-    email: (c.email || '').trim(),
-    citta: (c.citta || '').trim(),
+    nome: testo(c.nome),
+    referente: testo(c.referente),
+    telefono: testo(c.telefono),
+    email: testo(c.email),
+    citta: testo(c.citta),
+    categoria: testo(c.categoria),
+    codice_fiscale: testo(c.codice_fiscale),
+    partita_iva: testo(c.partita_iva),
+    sito: testo(c.sito),
+    tipo_veicolo: testo(c.tipo_veicolo),
+    n_veicoli: intero(c.n_veicoli),
+    km_annui: intero(c.km_annui),
     stato: statoById(c.stato).id,
     richiamo: c.richiamo || '',
-    note: c.note || '',
+    note: testo(c.note),
     creato: (c.creato || oggi()).slice(0, 10),
     aggiornato: c.aggiornato || null
   };
@@ -510,7 +577,10 @@ function normalizza(c){
 // Il campo `id` lo assegna il database; `richiamo` vuoto va inviato come nullo.
 function perArchivio(c){
   return {
-    nome: c.nome, telefono: c.telefono, email: c.email, citta: c.citta,
+    nome: c.nome, referente: c.referente, telefono: c.telefono, email: c.email,
+    citta: c.citta, categoria: c.categoria, codice_fiscale: c.codice_fiscale,
+    partita_iva: c.partita_iva, sito: c.sito, tipo_veicolo: c.tipo_veicolo,
+    n_veicoli: c.n_veicoli, km_annui: c.km_annui,
     stato: c.stato, richiamo: c.richiamo || null, note: c.note, creato: c.creato
   };
 }
@@ -532,6 +602,132 @@ async function salvaCliente(c){
 }
 async function eliminaCliente(id){
   return api('/clienti?id=eq.' + encodeURIComponent(id), {method: 'DELETE'});
+}
+
+/* ============================================================
+   Lettura di un file CSV (il formato in cui esporti i contatti)
+   Regge: separatore ; o , — virgolette — celle che vanno a capo —
+   intestazioni con accenti o maiuscole — date all'italiana.
+   ============================================================ */
+function separatore(testoCsv){
+  const prima = testoCsv.split(/\r?\n/)[0] || '';
+  const fuori = ch => {            // conta solo i separatori fuori dalle virgolette
+    let n = 0, dentro = false;
+    for(const c of prima){
+      if(c === '"') dentro = !dentro;
+      else if(c === ch && !dentro) n++;
+    }
+    return n;
+  };
+  return fuori(';') >= fuori(',') ? ';' : ',';
+}
+function leggiCsv(testoCsv){
+  const t = testoCsv.replace(/^\uFEFF/, '');      // via il segno iniziale di Excel
+  const sep = separatore(t);
+  const righe = [];
+  let campo = '', riga = [], dentro = false;
+  for(let i = 0; i < t.length; i++){
+    const c = t[i];
+    if(dentro){
+      if(c === '"'){
+        if(t[i+1] === '"'){ campo += '"'; i++; }   // virgoletta raddoppiata
+        else dentro = false;
+      }else campo += c;
+    }else if(c === '"'){ dentro = true; }
+    else if(c === sep){ riga.push(campo); campo = ''; }
+    else if(c === '\n'){ riga.push(campo); righe.push(riga); riga = []; campo = ''; }
+    else if(c !== '\r'){ campo += c; }
+  }
+  if(campo !== '' || riga.length){ riga.push(campo); righe.push(riga); }
+  return righe.filter(r => r.some(v => v.trim() !== ''));
+}
+
+// "Città" -> "citta", "N. Veicoli" -> "n veicoli": confronto senza accenti né simboli
+const chiave = s => String(s || '').toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+  .replace(/[^a-z0-9]+/g, ' ').trim();
+
+const COLONNE = {
+  nome:           ['azienda','nome','ragione sociale','cliente','denominazione'],
+  referente:      ['referente','contatto','persona'],
+  citta:          ['citta','comune','localita'],
+  categoria:      ['categoria','settore','attivita'],
+  codice_fiscale: ['codice fiscale','cf','cod fiscale'],
+  partita_iva:    ['partita iva','p iva','piva','vat'],
+  telefono:       ['telefono','tel','cellulare','cell','recapito'],
+  email:          ['email','e mail','mail','posta elettronica'],
+  sito:           ['sito','sito web','website','web'],
+  tipo_veicolo:   ['tipo veicolo','tipologia veicolo','veicolo'],
+  n_veicoli:      ['n veicoli','numero veicoli','veicoli','mezzi'],
+  km_annui:       ['km annui','km','chilometri','percorrenza'],
+  stato:          ['stato','fase','esito'],
+  richiamo:       ['follow up','followup','richiamo','data richiamo','prossimo contatto'],
+  note:           ['note','appunti','commenti','descrizione'],
+  creato:         ['creato','data','inserito','data inserimento']
+};
+function mappaIntestazioni(intestazione){
+  const mappa = {};
+  intestazione.forEach((testoCol, i) => {
+    const k = chiave(testoCol);
+    for(const campo in COLONNE){
+      if(COLONNE[campo].includes(k)){ mappa[campo] = i; return; }
+    }
+  });
+  return mappa;
+}
+// 29/07/2026 · 29-07-2026 · 2026-07-29 · "—" = vuoto
+function dataDaTesto(v){
+  const t = String(v || '').trim();
+  if(!t || t === '—' || t === '-') return '';
+  let m = t.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
+  if(m){
+    let [, g, me, a] = m;
+    if(a.length === 2) a = '20' + a;
+    return `${a}-${me.padStart(2,'0')}-${g.padStart(2,'0')}`;
+  }
+  m = t.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return m ? m[0] : '';
+}
+function statoDaTesto(v){
+  const k = chiave(v);
+  if(!k) return {id: 'da_chiamare', riconosciuto: false};
+  if(STATI.some(s => s.id === k.replace(/ /g, '_'))) return {id: k.replace(/ /g,'_'), riconosciuto: true};
+  const trovato = SINONIMI_STATO[k];
+  return trovato ? {id: trovato, riconosciuto: true} : {id: 'da_chiamare', riconosciuto: false};
+}
+
+// Da file CSV a contatti pronti per l'archivio.
+function contattiDaCsv(testoCsv){
+  const righe = leggiCsv(testoCsv);
+  if(righe.length < 2) throw new Error('il file non contiene righe di dati');
+  const mappa = mappaIntestazioni(righe[0]);
+  if(mappa.nome === undefined)
+    throw new Error('manca la colonna con il nome del cliente (per esempio "Azienda" o "Nome")');
+
+  const vuoto = v => { const t = String(v || '').trim(); return t === '—' || t === '-' ? '' : t; };
+  const contatti = [];
+  let statiNonRiconosciuti = 0, scartate = 0;
+
+  righe.slice(1).forEach(r => {
+    const val = campo => mappa[campo] === undefined ? '' : vuoto(r[mappa[campo]]);
+    const nome = val('nome');
+    const telefono = val('telefono');
+    if(!nome && !telefono){ scartate++; return; }
+    const st = statoDaTesto(val('stato'));
+    if(!st.riconosciuto && val('stato')) statiNonRiconosciuti++;
+    contatti.push(normalizza({
+      nome, telefono,
+      referente: val('referente'), email: val('email'), citta: val('citta'),
+      categoria: val('categoria'), codice_fiscale: val('codice_fiscale'),
+      partita_iva: val('partita_iva'), sito: val('sito'),
+      tipo_veicolo: val('tipo_veicolo'), n_veicoli: val('n_veicoli'), km_annui: val('km_annui'),
+      stato: st.id,
+      richiamo: dataDaTesto(val('richiamo')),
+      note: val('note'),
+      creato: dataDaTesto(val('creato')) || oggi()
+    }));
+  });
+  return {contatti, statiNonRiconosciuti, scartate, colonneLette: Object.keys(mappa).length};
 }
 
 /* --- avviso in cima alla pagina --- */
@@ -697,14 +893,14 @@ function renderFunnel(stadi){
   const H = TOP + stadi.length * (ROW + GAP);
   const plotW = W - LBL - PAD_R;
   const max = Math.max(1, stadi[0].v);
-  const ramp = ['var(--step-1)','var(--step-2)','var(--step-3)','var(--step-4)'];
+  const ramp = ['var(--step-1)','var(--step-2)','var(--step-3)','var(--step-4)','var(--step-5)'];
 
   let s = '';
   stadi.forEach((st, i) => {
     const y = TOP + i * (ROW + GAP), w = (st.v / max) * plotW, cy = y + ROW / 2;
     s += `<text class="lbl" x="${LBL-12}" y="${cy+4}" text-anchor="end">${esc(st.label)}</text>`;
     if(st.v > 0)
-      s += `<path d="${barPath(LBL, y+3, Math.max(w,2), ROW-6, 4, 'right')}" fill="${ramp[i%4]}"/>`;
+      s += `<path d="${barPath(LBL, y+3, Math.max(w,2), ROW-6, 4, 'right')}" fill="${ramp[i%ramp.length]}"/>`;
     s += `<text class="val" x="${LBL + Math.max(w,2) + 10}" y="${cy+4}">${st.v}`
        + (i > 0 ? `  <tspan fill="var(--muted)">${st.conv}% del passo prec.</tspan>` : '')
        + `</text>`;
@@ -735,6 +931,12 @@ function renderFunnel(stadi){
    ============================================================ */
 function periodoGiorni(){ return filtri.period === 'all' ? null : parseInt(filtri.period, 10); }
 
+function cercabile(c){
+  return [c.nome, c.referente, c.telefono, c.email, c.citta, c.categoria,
+          c.partita_iva, c.codice_fiscale, c.sito, c.tipo_veicolo, c.note,
+          statoById(c.stato).label].join(' ').toLowerCase();
+}
+
 function nelPeriodo(c){
   const g = periodoGiorni();
   if(g === null) return true;
@@ -744,19 +946,19 @@ function visibili(){                       // filtri completi: periodo + stato +
   const q = filtri.q.trim().toLowerCase();
   return clienti.filter(c => {
     if(!nelPeriodo(c)) return false;
+    if(filtri.categoria !== 'all' && c.categoria !== filtri.categoria) return false;
     if(filtri.stato !== 'all' && c.stato !== filtri.stato) return false;
     if(!q) return true;
-    return [c.nome, c.telefono, c.email, c.citta, c.note, statoById(c.stato).label]
-      .join(' ').toLowerCase().includes(q);
+    return cercabile(c).includes(q);
   });
 }
 function perGrafici(){                     // i grafici seguono periodo + ricerca, non il filtro di stato
   const q = filtri.q.trim().toLowerCase();
   return clienti.filter(c => {
     if(!nelPeriodo(c)) return false;
+    if(filtri.categoria !== 'all' && c.categoria !== filtri.categoria) return false;
     if(!q) return true;
-    return [c.nome, c.telefono, c.email, c.citta, c.note, statoById(c.stato).label]
-      .join(' ').toLowerCase().includes(q);
+    return cercabile(c).includes(q);
   });
 }
 
@@ -786,11 +988,15 @@ function serieMesi(rows){
 function calcolaFunnel(rows){
   const tot = rows.length;
   const conta = min => rows.filter(c => statoById(c.stato).rank >= min).length;
+  // Un "Chiuso negativo" non è mai arrivato dalla scrivania: è stato contattato
+  // e ha detto no. Nel primo passo del funnel va contato fra i contattati.
+  const contattati = rows.filter(c => statoById(c.stato).rank >= 1 || c.stato === 'perso').length;
   const stadi = [
-    {label:'Contatti',    v: tot},
-    {label:'Chiamati',    v: conta(1)},
-    {label:'Preventivi',  v: conta(2)},
-    {label:'Contratti',   v: conta(3)}
+    {label:'Contatti',     v: tot},
+    {label:'Contattati',   v: contattati},
+    {label:'Interesse',    v: conta(2)},
+    {label:'Mail inviate', v: conta(3)},
+    {label:'Contratti',    v: conta(4)}
   ];
   stadi.forEach((s, i) => {
     const prev = i > 0 ? stadi[i-1].v : s.v;
@@ -804,23 +1010,25 @@ function calcolaFunnel(rows){
    5. Render della pagina
    ============================================================ */
 function render(){
+  aggiornaCategorie();
   const rowsG = perGrafici();
   const rowsT = visibili();
   const tot = rowsG.length;
   const per = id => rowsG.filter(c => c.stato === id).length;
 
   // --- KPI ---
-  const scaduti = clienti.filter(c => c.stato === 'da_richiamare' && c.richiamo && giorniDa(c.richiamo) < 0).length;
-  const chiusi = per('chiuso');
+  const scaduti = clienti.filter(c => c.richiamo && giorniDa(c.richiamo) < 0
+                                   && c.stato !== 'contratto' && c.stato !== 'perso').length;
+  const chiusi = per('contratto');
   const tasso = tot ? Math.round(chiusi / tot * 100) : 0;
   const kpi = [
-    {label:'Clienti totali', value: tot, hint: etichettaPeriodo(), hero:true},
-    {label:'Interessati',    value: per('interessato'),   hint:'in attesa di prima chiamata', color:'var(--info)'},
-    {label:'Chiamati',       value: per('chiamato'),      hint:'già contattati', color:'var(--violet)'},
-    {label:'Da richiamare',  value: per('da_richiamare'),
+    {label:'Contatti totali', value: tot, hint: etichettaPeriodo(), hero:true},
+    {label:'Da chiamare',    value: per('da_chiamare'),   hint:'mai contattati finora', color:'var(--info)'},
+    {label:'Da richiamare',  value: per('chiamato'),
       hint: scaduti ? '⚠ ' + plur(scaduti,'richiamo scaduto','richiami scaduti') : 'nessun richiamo scaduto',
       color:'var(--warning)'},
-    {label:'Preventivi',     value: per('preventivo'),    hint:'offerte inviate', color:'var(--aqua)'},
+    {label:'Interesse',      value: per('interesse'),     hint:'hanno dato disponibilità', color:'var(--violet)'},
+    {label:'Mail inviate',   value: per('mail_inviata'),  hint:'proposta mandata', color:'var(--aqua)'},
     {label:'Contratti',      value: chiusi,               hint:'tasso di conversione ' + tasso + '%', color:'var(--good)'}
   ];
   document.getElementById('kpis').innerHTML = kpi.map(k => `
@@ -843,14 +1051,14 @@ function render(){
   const stadi = calcolaFunnel(rowsG);
   renderFunnel(stadi);
   document.getElementById('funnelSub').textContent =
-    `Dal primo contatto al contratto firmato: ${stadi[0].v} contatti → ${stadi[3].v} contratti (${tasso}%).`;
+    `Dal primo contatto al contratto firmato: ${stadi[0].v} contatti → ${stadi[4].v} contratti (${tasso}%).`;
   document.getElementById('statoSub').textContent =
-    tot ? `Quanti clienti ci sono in ogni fase — ${plur(tot,'cliente','clienti')} ${etichettaPeriodo().toLowerCase()}.`
-        : 'Nessun cliente nel periodo selezionato.';
+    tot ? `A che punto sono i contatti — ${plur(tot,'contatto','contatti')} ${etichettaPeriodo().toLowerCase()}.`
+        : 'Nessun contatto nel periodo selezionato.';
 
   // --- da richiamare ---
   const cbs = clienti
-    .filter(c => c.stato === 'da_richiamare' || (c.richiamo && c.stato !== 'chiuso' && c.stato !== 'perso'))
+    .filter(c => (c.stato === 'chiamato' || c.richiamo) && c.stato !== 'contratto' && c.stato !== 'perso')
     .sort((a, b) => (a.richiamo || '9999') < (b.richiamo || '9999') ? -1 : 1);
   const host = document.getElementById('callbacks');
   document.getElementById('cbCount').textContent = cbs.length ? plur(cbs.length,'cliente','clienti') : '';
@@ -876,8 +1084,8 @@ function render(){
   const ord = [...rowsT].sort(confronta);
   document.getElementById('tableCount').textContent = plur(ord.length,'cliente','clienti');
   document.getElementById('filterCount').textContent =
-    ord.length === clienti.length ? plur(clienti.length,'cliente in archivio','clienti in archivio')
-                                  : `${ord.length} di ${clienti.length} clienti`;
+    ord.length === clienti.length ? plur(clienti.length,'contatto in archivio','contatti in archivio')
+                                  : `${ord.length} di ${clienti.length} contatti`;
   document.getElementById('tbody').innerHTML = ord.map(c => {
     const s = statoById(c.stato);
     const d = c.richiamo ? giorniDa(c.richiamo) : null;
@@ -887,9 +1095,10 @@ function render(){
     // ogni cella ha un unico figlio (.v): in vista mobile la cella è un flex
     // e più figli finirebbero affiancati ignorando gli a capo.
     return `<tr data-id="${c.id}">
-      <td><span class="v"><strong>${esc(c.nome)}</strong>${c.note ? `<br><span class="nota">${esc(c.note.slice(0,60))}${c.note.length>60?'…':''}</span>` : ''}</span></td>
+      <td><span class="v"><strong>${esc(c.nome)}</strong>${c.referente ? `<br><span class="nota">${esc(c.referente)}</span>` : ''}${c.note ? `<br><span class="nota">${esc(c.note.slice(0,60))}${c.note.length>60?'…':''}</span>` : ''}</span></td>
       <td class="num" data-l="Contatti"><span class="v">${c.telefono ? esc(c.telefono) : ''}${c.telefono && c.email ? '<br>' : ''}${c.email ? `<span class="mail">${esc(c.email)}</span>` : ''}${!c.telefono && !c.email ? '—' : ''}</span></td>
       <td data-l="Città"><span class="v">${esc(c.citta || '—')}</span></td>
+      <td data-l="Categoria"><span class="v">${c.categoria ? esc(c.categoria) : '—'}</span></td>
       <td data-l="Stato"><span class="v"><span class="badge"><span class="dot" style="background:${s.color}"></span>${s.icon} ${esc(s.label)}</span></span></td>
       <td class="num" data-l="Richiamo"><span class="v">${rich}</span></td>
       <td class="num" data-l="Inserito"><span class="v">${dataIt(c.creato)}</span></td>
@@ -921,6 +1130,23 @@ const backdrop = document.getElementById('backdrop');
 const modal    = document.getElementById('clientModal');
 const form     = document.getElementById('clientForm');
 
+function categorieInUso(){
+  return [...new Set(clienti.map(c => c.categoria).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, 'it'));
+}
+function aggiornaCategorie(){
+  const cats = categorieInUso();
+  const dl = document.getElementById('listaCategorie');
+  if(dl) dl.innerHTML = cats.map(c => `<option value="${esc(c)}"></option>`).join('');
+  const sel = document.getElementById('fCategoria');
+  if(sel){
+    const scelta = filtri.categoria;
+    sel.innerHTML = '<option value="all">Tutte le categorie</option>' +
+      cats.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join('');
+    sel.value = cats.includes(scelta) ? scelta : 'all';
+    if(sel.value === 'all') filtri.categoria = 'all';
+  }
+}
 function popolaSelect(){
   document.getElementById('f-stato').innerHTML =
     STATI.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
@@ -933,15 +1159,16 @@ function apriModale(id){
   document.getElementById('modalTitle').textContent = c ? 'Modifica cliente' : 'Nuovo cliente';
   document.getElementById('btnDelete').style.display = c ? 'inline-flex' : 'none';
   form.reset();
-  form.id.value       = c ? c.id : '';
-  form.nome.value     = c ? c.nome : '';
-  form.telefono.value = c ? c.telefono : '';
-  form.email.value    = c ? c.email : '';
-  form.citta.value    = c ? c.citta : '';
-  form.stato.value    = c ? c.stato : 'interessato';
+  const CAMPI = ['nome','referente','telefono','email','citta','categoria','sito',
+                 'partita_iva','codice_fiscale','tipo_veicolo','note'];
+  form.id.value = c ? c.id : '';
+  CAMPI.forEach(k => { form[k].value = c ? (c[k] || '') : ''; });
+  form.n_veicoli.value = c && c.n_veicoli != null ? c.n_veicoli : '';
+  form.km_annui.value  = c && c.km_annui  != null ? c.km_annui  : '';
+  form.stato.value    = c ? c.stato : 'da_chiamare';
   form.richiamo.value = c ? c.richiamo : '';
   form.creato.value   = c ? c.creato : oggi();
-  form.note.value     = c ? c.note : '';
+  aggiornaCategorie();
   modal.style.display = 'block'; backdrop.style.display = 'block';
   setTimeout(() => form.nome.focus(), 30);
 }
@@ -951,12 +1178,12 @@ form.addEventListener('submit', async e => {
   e.preventDefault();
   if(offline){ alert('Senza connessione non è possibile salvare.'); return; }
   const btn = form.querySelector('button[type=submit]');
-  const dati = normalizza({
-    id: form.id.value || null,
-    nome: form.nome.value, telefono: form.telefono.value, email: form.email.value,
-    citta: form.citta.value, stato: form.stato.value, richiamo: form.richiamo.value,
-    creato: form.creato.value || oggi(), note: form.note.value
-  });
+  const raccolta = {id: form.id.value || null, stato: form.stato.value,
+                    richiamo: form.richiamo.value, creato: form.creato.value || oggi()};
+  ['nome','referente','telefono','email','citta','categoria','sito','partita_iva',
+   'codice_fiscale','tipo_veicolo','n_veicoli','km_annui','note']
+    .forEach(k => { raccolta[k] = form[k].value; });
+  const dati = normalizza(raccolta);
   btn.disabled = true; btn.textContent = 'Salvataggio…';
   try{
     await salvaCliente(dati);
@@ -1009,6 +1236,7 @@ document.querySelectorAll('th[data-sort]').forEach(th => {
 
 document.getElementById('fPeriod').onchange = e => { filtri.period = e.target.value; render(); };
 document.getElementById('fStato').onchange  = e => { filtri.stato  = e.target.value; render(); };
+document.getElementById('fCategoria').onchange = e => { filtri.categoria = e.target.value; render(); };
 let tSearch;
 document.getElementById('fSearch').oninput = e => {
   clearTimeout(tSearch);
@@ -1023,17 +1251,117 @@ function scarica(nome, contenuto, tipo){
   a.href = url; a.download = nome; document.body.appendChild(a); a.click();
   a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
+// Stesse colonne, stesso ordine e stesse date del file di lavoro:
+// quello che esce da qui si può reimportare, qui o altrove.
+const dataItaliana = iso => iso ? iso.slice(8,10) + '/' + iso.slice(5,7) + '/' + iso.slice(0,4) : '';
+const COLONNE_CSV = [
+  ['Azienda',        c => c.nome],
+  ['Referente',      c => c.referente],
+  ['Città',          c => c.citta],
+  ['Categoria',      c => c.categoria],
+  ['Codice Fiscale', c => c.codice_fiscale],
+  ['Partita IVA',    c => c.partita_iva],
+  ['Telefono',       c => c.telefono],
+  ['Email',          c => c.email],
+  ['Sito',           c => c.sito],
+  ['Tipo Veicolo',   c => c.tipo_veicolo],
+  ['N. Veicoli',     c => c.n_veicoli == null ? '' : c.n_veicoli],
+  ['Km Annui',       c => c.km_annui == null ? '' : c.km_annui],
+  ['Stato',          c => statoById(c.stato).label],
+  ['Follow-up',      c => dataItaliana(c.richiamo)],
+  ['Note',           c => c.note],
+  ['Creato',         c => dataItaliana(c.creato)]
+];
 document.getElementById('btnExport').onclick = () => {
-  const col = ['Nome','Telefono','Email','Città','Stato','Richiamo','Inserito','Note'];
   const q = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
-  const righe = visibili().sort(confronta).map(c =>
-    [c.nome,c.telefono,c.email,c.citta,statoById(c.stato).label,c.richiamo,c.creato,c.note].map(q).join(';'));
-  scarica(`galvarent-clienti-${oggi()}.csv`, '﻿' + [col.map(q).join(';'), ...righe].join('\r\n'),
+  const righe = visibili().sort(confronta)
+    .map(c => COLONNE_CSV.map(([, prendi]) => q(prendi(c))).join(';'));
+  scarica(`galvarent-clienti-${oggi()}.csv`,
+          '﻿' + [COLONNE_CSV.map(([t]) => q(t)).join(';'), ...righe].join('\r\n'),
           'text/csv;charset=utf-8');
 };
 document.getElementById('btnBackup').onclick = () =>
   scarica(`galvarent-backup-${oggi()}.json`, JSON.stringify({versione:1, esportato:new Date().toISOString(), clienti}, null, 2),
           'application/json');
+// Due contatti sono la stessa persona se hanno lo stesso numero
+// (a parità di cifre) o, in mancanza, lo stesso nome.
+const impronta = c => {
+  const t = (c.telefono || '').replace(/\D/g, '');
+  if(t) return 't:' + t;
+  return c.nome ? 'n:' + c.nome.toLowerCase() : '';
+};
+function daJson(contenuto){
+  const dati = JSON.parse(contenuto);
+  const lista = Array.isArray(dati) ? dati : dati.clienti;
+  if(!Array.isArray(lista)) throw new Error('il file non contiene un elenco di clienti');
+  return {contatti: lista.map(normalizza), statiNonRiconosciuti: 0, scartate: 0, colonneLette: null};
+}
+// Quanto è "avanti" un contatto: fra due schede della stessa azienda
+// vince quella che racconta il fatto più recente, non la prima incontrata.
+const PESO_STATO = {da_chiamare:0, chiamato:1, interesse:2, mail_inviata:3, perso:4, contratto:5};
+
+// Il doppione non si butta: riempie i campi lasciati vuoti da quello tenuto.
+function unisci(tenuto, altro){
+  const out = Object.assign({}, tenuto);
+  Object.keys(out).forEach(k => {
+    if(k === 'note') return;
+    const vuoto = out[k] === '' || out[k] == null;
+    if(vuoto && altro[k] !== '' && altro[k] != null) out[k] = altro[k];
+  });
+  if(altro.note && altro.note !== tenuto.note)
+    out.note = tenuto.note ? tenuto.note + ' / ' + altro.note : altro.note;
+  return out;
+}
+
+async function importa(lettura){
+  if(!lettura.contatti.length) throw new Error('nessun contatto nel file');
+
+  const inArchivio = new Set(clienti.map(impronta).filter(Boolean));
+  const posizione = new Map();
+  const nuovi = [];
+  let doppi = 0, uniti = 0;
+
+  lettura.contatti.forEach(c => {
+    const k = impronta(c);
+    if(k && inArchivio.has(k)){ doppi++; return; }
+    if(k && posizione.has(k)){                   // stessa azienda due volte nello stesso file
+      const i = posizione.get(k);
+      const primo = nuovi[i];
+      const tenuto = PESO_STATO[primo.stato] >= PESO_STATO[c.stato] ? primo : c;
+      nuovi[i] = unisci(tenuto, tenuto === primo ? c : primo);
+      uniti++;
+      return;
+    }
+    if(k) posizione.set(k, nuovi.length);
+    nuovi.push(c);
+  });
+
+  const riepilogo = [
+    `Nel file: ${lettura.contatti.length} contatti` +
+      (lettura.colonneLette ? `, ${lettura.colonneLette} colonne riconosciute.` : '.'),
+    doppi ? `${doppi} già presenti in archivio: li salto.` : '',
+    uniti ? `${uniti} aziende comparivano due volte nel file: unite in una scheda sola, ` +
+            `tenendo lo stato più avanzato.` : '',
+    lettura.scartate ? `${lettura.scartate} righe senza nome né telefono: ignorate.` : '',
+    lettura.statiNonRiconosciuti
+      ? `${lettura.statiNonRiconosciuti} stati non riconosciuti: finiscono in "Da chiamare".` : '',
+    '',
+    nuovi.length ? `Aggiungo ${nuovi.length} contatti nuovi. Procedo?`
+                 : 'Non c\'è nulla di nuovo da aggiungere.'
+  ].filter(r => r !== '').join('\n');
+
+  if(!nuovi.length){ alert(riepilogo); return; }
+  if(!confirm(riepilogo)) return;
+
+  const blocco = 100;                    // a blocchi, così anche 300+ contatti passano
+  for(let i = 0; i < nuovi.length; i += blocco){
+    segnala(`Caricamento in corso… ${Math.min(i + blocco, nuovi.length)} di ${nuovi.length}`, 'work');
+    await api('/clienti', {method: 'POST', body: JSON.stringify(nuovi.slice(i, i + blocco).map(perArchivio))});
+  }
+  await aggiorna();
+  segnala(`${nuovi.length} contatti importati` + (doppi ? `, ${doppi} già presenti saltati` : '') + '.', 'ok');
+}
+
 document.getElementById('btnImport').onclick = () => document.getElementById('importFile').click();
 document.getElementById('importFile').onchange = e => {
   const file = e.target.files[0];
@@ -1041,20 +1369,15 @@ document.getElementById('importFile').onchange = e => {
   const fr = new FileReader();
   fr.onload = async () => {
     try{
-      const dati = JSON.parse(fr.result);
-      const lista = Array.isArray(dati) ? dati : dati.clienti;
-      if(!Array.isArray(lista) || !lista.length) throw new Error('formato');
-      if(!confirm(`Il file contiene ${lista.length} clienti: verranno aggiunti all'archivio ` +
-                  `(i ${clienti.length} attuali restano dove sono). Procedere?`)) return;
-      segnala('Importazione in corso…', 'work');
-      await api('/clienti', {method: 'POST', body: JSON.stringify(lista.map(c => perArchivio(normalizza(c))))});
-      await aggiorna();
-      segnala(lista.length + ' clienti importati.', 'ok');
+      if(offline) throw new Error('senza connessione non è possibile importare');
+      const contenuto = String(fr.result);
+      const pareJson = /^\s*[\[{]/.test(contenuto.replace(/^\uFEFF/, ''));
+      await importa(pareJson ? daJson(contenuto) : contattiDaCsv(contenuto));
     }catch(err){
-      segnala('Importazione non riuscita: ' + (err.message === 'formato' ? 'file non valido.' : err.message), 'off');
+      segnala('Importazione non riuscita: ' + err.message, 'off');
     }finally{ e.target.value = ''; }
   };
-  fr.readAsText(file);
+  fr.readAsText(file, 'utf-8');
 };
 
 /* --- ridisegno dei grafici al cambio di larghezza --- */
