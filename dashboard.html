@@ -1,0 +1,970 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>GalvaRent – Panoramica clienti</title>
+  <style>
+    :root{
+      --red:#ef2b2b;
+      --page:#0a0a0a;
+      --surface:#121212;
+      --surface-2:#171717;
+      --line:rgba(255,255,255,.06);
+      --text:#ffffff;
+      --text-2:#c3c2b7;
+      --muted:#898781;
+      --grid:#2c2c2a;
+      --axis:#383835;
+      /* serie dati: una sola tinta (magnitudine) */
+      --series:#3987e5;
+      /* rampa ordinale funnel (chiaro -> scuro, validata su superficie scura) */
+      --step-1:#9ec5f4;--step-2:#5598e7;--step-3:#2a78d6;--step-4:#1c5cab;
+      /* stati operativi: sempre accompagnati da etichetta e icona */
+      --good:#0ca30c;--warning:#fab219;--critical:#d03b3b;--info:#3987e5;--violet:#9085e9;--aqua:#199e70;
+    }
+    *{box-sizing:border-box}
+    html,body{margin:0;padding:0;background:var(--page);color:var(--text);
+      font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    a{color:inherit;text-decoration:none}
+    button,input,select,textarea{font:inherit;color:inherit}
+    .container{max-width:1180px;margin:0 auto;padding:0 16px}
+
+    /* ---------- header ---------- */
+    .header{position:sticky;top:0;z-index:40;backdrop-filter:saturate(140%) blur(8px);
+      background:rgba(0,0,0,.6);border-bottom:1px solid var(--line)}
+    .header-inner{display:flex;align-items:center;gap:12px;padding:10px 16px;flex-wrap:wrap}
+    .brand{display:flex;flex-direction:column;line-height:1.1;margin-right:auto}
+    .brand-title{color:var(--red);font-weight:800;letter-spacing:.2px}
+    .brand-sub{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.6px}
+    .btn{display:inline-flex;align-items:center;gap:6px;padding:9px 13px;border-radius:12px;
+      border:1px solid rgba(255,255,255,.1);background:var(--surface-2);color:#fff;font-weight:600;
+      cursor:pointer;white-space:nowrap}
+    .btn:hover{background:#1e1e1e}
+    .btn-primary{background:var(--red);border-color:transparent;color:#000}
+    .btn-primary:hover{background:#ff3b3b}
+    .btn-ghost{background:transparent}
+    .btn-sm{padding:6px 10px;border-radius:10px;font-size:13px}
+
+    /* ---------- layout ---------- */
+    main{padding:18px 0 60px}
+    .card{background:var(--surface);border:1px solid var(--line);border-radius:20px;padding:16px}
+    .card + .card{margin-top:14px}
+    .card-head{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin-bottom:2px}
+    .card-title{font-size:14px;font-weight:700;margin:0}
+    .card-sub{margin:2px 0 14px;font-size:12px;color:var(--muted)}
+    .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    @media(max-width:860px){.grid-2{grid-template-columns:1fr}}
+
+    /* ---------- filtri ---------- */
+    .filters{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:14px}
+    .input,select.input{background:var(--surface);border:1px solid rgba(255,255,255,.1);
+      border-radius:12px;padding:9px 11px;min-width:0;outline:none}
+    .input:focus{border-color:rgba(255,255,255,.28)}
+    .input::placeholder{color:var(--muted)}
+    .search{flex:1;min-width:180px}
+
+    /* ---------- KPI ---------- */
+    .kpis{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:14px}
+    @media(max-width:980px){.kpis{grid-template-columns:repeat(3,1fr)}}
+    @media(max-width:560px){.kpis{grid-template-columns:repeat(2,1fr)}}
+    .kpi{background:var(--surface);border:1px solid var(--line);border-radius:18px;padding:13px 14px}
+    .kpi .label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;
+      display:flex;align-items:center;gap:6px}
+    .kpi .value{font-size:30px;font-weight:800;margin-top:6px;line-height:1}
+    .kpi .hint{font-size:11px;color:var(--text-2);margin-top:5px}
+    .kpi.hero{grid-column:span 1}
+    .kpi.hero .value{font-size:38px;color:var(--red)}
+    .dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
+
+    /* ---------- grafici ---------- */
+    .chart{width:100%;display:block;overflow:visible}
+    .chart text{font-family:inherit}
+    .tick{fill:var(--muted);font-size:11px}
+    .val{fill:var(--text-2);font-size:11px;font-variant-numeric:tabular-nums}
+    .lbl{fill:var(--text);font-size:12px}
+    .gridline{stroke:var(--grid);stroke-width:1}
+    .baseline{stroke:var(--axis);stroke-width:1}
+    .bar{fill:var(--series)}
+    .hit{fill:transparent;cursor:pointer}
+    .hit:hover + .bar,.bar.on{filter:brightness(1.22)}
+    .empty{color:var(--muted);font-size:13px;padding:22px 0;text-align:center}
+    #tip{position:fixed;z-index:70;pointer-events:none;display:none;background:#0d0d0d;
+      border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:7px 10px;font-size:12px;
+      box-shadow:0 8px 24px rgba(0,0,0,.6);white-space:nowrap}
+    #tip b{font-variant-numeric:tabular-nums}
+
+    /* ---------- badge stati ---------- */
+    .badge{display:inline-flex;align-items:center;gap:6px;padding:3px 9px;border-radius:999px;
+      font-size:12px;font-weight:600;background:#0d0d0d;border:1px solid rgba(255,255,255,.1);color:var(--text-2)}
+
+    /* ---------- liste e tabella ---------- */
+    .callbacks{display:flex;flex-direction:column;gap:8px}
+    .cb{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;
+      background:var(--surface-2);border:1px solid var(--line)}
+    .cb .who{font-weight:600}
+    .cb .meta{font-size:12px;color:var(--muted)}
+    .cb .when{margin-left:auto;font-size:12px;font-variant-numeric:tabular-nums;text-align:right}
+    .cb.late{border-color:rgba(208,59,59,.55)}
+    .cb.today{border-color:rgba(250,178,25,.5)}
+    .table-wrap{overflow-x:auto;margin:0 -4px}
+    table{border-collapse:collapse;width:100%;min-width:760px}
+    th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+    th{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;font-weight:600;
+      white-space:nowrap;cursor:pointer;user-select:none}
+    td{font-size:14px}
+    td.num{font-variant-numeric:tabular-nums;color:var(--text-2);white-space:nowrap}
+    tbody tr:hover{background:rgba(255,255,255,.03)}
+    td .v{display:block;min-width:0;overflow-wrap:anywhere}
+    td .nota{color:var(--muted);font-size:12px}
+    td .mail{font-size:12px}
+    @media(max-width:700px){
+      table{min-width:0}
+      thead{display:none}
+      tbody tr{display:block;border:1px solid var(--line);border-radius:16px;
+        background:var(--surface-2);padding:10px 12px;margin-bottom:10px}
+      tbody tr:hover{background:var(--surface-2)}
+      td{display:flex;gap:10px;align-items:baseline;border:none;padding:3px 0}
+      td:empty{display:none}
+      td.num{white-space:normal}
+      td::before{content:attr(data-l);flex:none;width:78px;font-size:11px;color:var(--muted);
+        text-transform:uppercase;letter-spacing:.5px}
+      td:first-child::before{display:none}
+      td:first-child{display:block;padding-bottom:6px}
+      .row-actions{justify-content:flex-start}
+    }
+    .row-actions{display:flex;gap:6px;justify-content:flex-end}
+    .link{color:var(--text-2);text-decoration:underline;text-underline-offset:2px}
+
+    /* ---------- modali ---------- */
+    .backdrop{position:fixed;inset:0;background:rgba(0,0,0,.66);backdrop-filter:blur(2px);
+      display:none;z-index:60}
+    .modal{position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);width:min(94vw,620px);
+      max-height:90vh;overflow:auto;background:#131313;border:1px solid rgba(255,255,255,.08);
+      border-radius:22px;box-shadow:0 10px 30px rgba(0,0,0,.55);display:none;z-index:61}
+    .modal header{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;
+      border-bottom:1px solid var(--line)}
+    .modal h3{margin:0;font-size:17px}
+    .modal .close{background:transparent;border:none;font-size:24px;line-height:1;cursor:pointer;color:#fff}
+    .modal .content{padding:16px}
+    .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+    @media(max-width:560px){.form-grid{grid-template-columns:1fr}}
+    .field{display:flex;flex-direction:column;gap:5px}
+    .field label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+    .field.full{grid-column:1/-1}
+    textarea.input{resize:vertical;min-height:70px}
+
+    /* ---------- gate ---------- */
+    #gate{position:fixed;inset:0;z-index:90;background:var(--page);display:flex;
+      align-items:center;justify-content:center;padding:20px}
+    #gate .box{width:min(94vw,380px);text-align:center}
+    #gate h1{font-size:20px;margin:0 0 6px}
+    #gate p{color:var(--muted);font-size:13px;margin:0 0 18px}
+    #gate .err{color:var(--critical);font-size:13px;min-height:18px;margin-top:10px}
+    .visually-hidden{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+  </style>
+</head>
+<body>
+
+  <!-- ====================== ACCESSO ====================== -->
+  <div id="gate">
+    <div class="box card">
+      <div class="brand" style="align-items:center;margin:0 0 14px">
+        <span class="brand-title" style="font-size:22px">GalvaRent</span>
+        <span class="brand-sub">Area riservata</span>
+      </div>
+      <h1 id="gateTitle">Inserisci il PIN</h1>
+      <p id="gateHint">Accesso alla panoramica clienti.</p>
+      <form id="gateForm" autocomplete="off">
+        <label class="visually-hidden" for="gatePin">PIN</label>
+        <input class="input" id="gatePin" type="password" inputmode="numeric" placeholder="PIN"
+               style="width:100%;text-align:center;letter-spacing:4px;font-size:18px" required />
+        <div id="gatePin2Wrap" style="display:none;margin-top:8px">
+          <label class="visually-hidden" for="gatePin2">Conferma PIN</label>
+          <input class="input" id="gatePin2" type="password" inputmode="numeric" placeholder="Conferma PIN"
+                 style="width:100%;text-align:center;letter-spacing:4px;font-size:18px" />
+        </div>
+        <button class="btn btn-primary" type="submit" style="width:100%;justify-content:center;margin-top:12px">
+          Entra
+        </button>
+        <div class="err" id="gateErr"></div>
+      </form>
+      <p style="margin-top:14px;font-size:11px">
+        I dati restano solo su questo dispositivo/browser. Usa “Backup” per salvarne una copia.
+      </p>
+    </div>
+  </div>
+
+  <!-- ====================== HEADER ====================== -->
+  <header class="header">
+    <div class="container header-inner">
+      <div class="brand">
+        <span class="brand-title">GalvaRent</span>
+        <span class="brand-sub">Panoramica clienti</span>
+      </div>
+      <button class="btn btn-primary" id="btnNew">+ Nuovo cliente</button>
+      <button class="btn btn-ghost btn-sm" id="btnExport" title="Scarica i clienti in CSV">CSV</button>
+      <button class="btn btn-ghost btn-sm" id="btnBackup" title="Scarica un backup completo">Backup</button>
+      <button class="btn btn-ghost btn-sm" id="btnRestore" title="Ripristina da un backup">Ripristina</button>
+      <a class="btn btn-ghost btn-sm" href="index.html">Sito</a>
+      <button class="btn btn-ghost btn-sm" id="btnLock">Esci</button>
+      <input type="file" id="restoreFile" accept="application/json" style="display:none" />
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+
+      <!-- filtri: una riga sopra i grafici -->
+      <div class="filters">
+        <select class="input" id="fPeriod" aria-label="Periodo">
+          <option value="30">Ultimi 30 giorni</option>
+          <option value="90">Ultimi 90 giorni</option>
+          <option value="365" selected>Ultimi 12 mesi</option>
+          <option value="all">Tutto lo storico</option>
+        </select>
+        <select class="input" id="fStato" aria-label="Filtra per stato">
+          <option value="all">Tutti gli stati</option>
+        </select>
+        <input class="input search" id="fSearch" type="search" placeholder="Cerca nome, telefono, città…" />
+        <span class="card-sub" id="filterCount" style="margin:0"></span>
+      </div>
+
+      <!-- KPI -->
+      <section class="kpis" id="kpis" aria-label="Indicatori principali"></section>
+
+      <!-- grafici -->
+      <div class="grid-2">
+        <section class="card">
+          <div class="card-head"><h2 class="card-title">Clienti per stato</h2></div>
+          <p class="card-sub" id="statoSub">Quanti clienti ci sono in ogni fase.</p>
+          <div id="chartStato"></div>
+        </section>
+
+        <section class="card">
+          <div class="card-head"><h2 class="card-title">Nuovi contatti</h2></div>
+          <p class="card-sub" id="trendSub">Contatti acquisiti mese per mese.</p>
+          <div id="chartTrend"></div>
+        </section>
+      </div>
+
+      <section class="card">
+        <div class="card-head"><h2 class="card-title">Funnel di conversione</h2></div>
+        <p class="card-sub" id="funnelSub">Dal primo contatto al contratto firmato.</p>
+        <div id="chartFunnel"></div>
+      </section>
+
+      <!-- richiami -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Da richiamare</h2>
+          <span class="card-sub" id="cbCount" style="margin:0"></span>
+        </div>
+        <p class="card-sub">Ordinati per data del richiamo: prima gli scaduti.</p>
+        <div class="callbacks" id="callbacks"></div>
+      </section>
+
+      <!-- elenco -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">Elenco clienti</h2>
+          <span class="card-sub" id="tableCount" style="margin:0"></span>
+        </div>
+        <p class="card-sub">Clicca su un cliente per modificarlo. I titoli delle colonne ordinano l’elenco.</p>
+        <div class="table-wrap">
+          <table id="table">
+            <thead>
+              <tr>
+                <th data-sort="nome">Cliente</th>
+                <th data-sort="contatti">Contatti</th>
+                <th data-sort="citta">Città</th>
+                <th data-sort="stato">Stato</th>
+                <th data-sort="richiamo">Richiamo</th>
+                <th data-sort="creato">Inserito</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="tbody"></tbody>
+          </table>
+        </div>
+        <div class="empty" id="tableEmpty" style="display:none">Nessun cliente con questi filtri.</div>
+      </section>
+
+    </div>
+  </main>
+
+  <div id="tip" role="status" aria-live="polite"></div>
+
+  <!-- ====================== MODALE CLIENTE ====================== -->
+  <div class="backdrop" id="backdrop"></div>
+  <div class="modal" id="clientModal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+    <header>
+      <h3 id="modalTitle">Nuovo cliente</h3>
+      <button class="close" id="modalClose" aria-label="Chiudi">&times;</button>
+    </header>
+    <div class="content">
+      <form id="clientForm">
+        <input type="hidden" name="id" />
+        <div class="form-grid">
+          <div class="field full">
+            <label for="f-nome">Nome / Ragione sociale</label>
+            <input class="input" id="f-nome" name="nome" required />
+          </div>
+          <div class="field">
+            <label for="f-telefono">Telefono</label>
+            <input class="input" id="f-telefono" name="telefono" type="tel" />
+          </div>
+          <div class="field">
+            <label for="f-email">Email</label>
+            <input class="input" id="f-email" name="email" type="email" />
+          </div>
+          <div class="field">
+            <label for="f-citta">Città</label>
+            <input class="input" id="f-citta" name="citta" />
+          </div>
+          <div class="field">
+            <label for="f-stato">Stato</label>
+            <select class="input" id="f-stato" name="stato"></select>
+          </div>
+          <div class="field">
+            <label for="f-richiamo">Data richiamo</label>
+            <input class="input" id="f-richiamo" name="richiamo" type="date" />
+          </div>
+          <div class="field">
+            <label for="f-creato">Data inserimento</label>
+            <input class="input" id="f-creato" name="creato" type="date" />
+          </div>
+          <div class="field full">
+            <label for="f-note">Note</label>
+            <textarea class="input" id="f-note" name="note" placeholder="Veicolo di interesse, budget, esito chiamata…"></textarea>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+          <button type="submit" class="btn btn-primary" style="flex:1;justify-content:center">Salva</button>
+          <button type="button" class="btn" id="btnDelete" style="display:none">Elimina</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+<script>
+(function(){
+'use strict';
+
+/* ============================================================
+   1. Costanti e stato
+   ============================================================ */
+const KEY_DATA = 'galvarent_clienti_v1';
+const KEY_PIN  = 'galvarent_pin_v1';
+const KEY_SEED = 'galvarent_seed_v1';
+
+// Fasi della pipeline. `rank` serve al funnel: chi è in una fase
+// ha necessariamente attraversato quelle precedenti. `perso` esce dal funnel.
+const STATI = [
+  {id:'interessato',  label:'Interessato',       color:'var(--info)',     icon:'●', rank:0},
+  {id:'chiamato',     label:'Chiamato',          color:'var(--violet)',   icon:'✆', rank:1},
+  {id:'da_richiamare',label:'Da richiamare',     color:'var(--warning)',  icon:'⏱', rank:1},
+  {id:'preventivo',   label:'Preventivo inviato',color:'var(--aqua)',     icon:'✉', rank:2},
+  {id:'chiuso',       label:'Contratto chiuso',  color:'var(--good)',     icon:'✓', rank:3},
+  {id:'perso',        label:'Non interessato',   color:'var(--critical)', icon:'✕', rank:-1}
+];
+const statoById = id => STATI.find(s => s.id === id) || STATI[0];
+
+let clienti = [];
+let filtri  = {period:'365', stato:'all', q:''};
+let ordine  = {col:'creato', dir:-1};
+
+/* ============================================================
+   2. Persistenza (localStorage) + utilità
+   ============================================================ */
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const oggi = () => new Date().toISOString().slice(0, 10);
+
+function load(){
+  try{
+    const raw = localStorage.getItem(KEY_DATA);
+    clienti = raw ? JSON.parse(raw) : [];
+    if(!Array.isArray(clienti)) clienti = [];
+  }catch(e){ clienti = []; }
+  clienti = clienti.map(normalizza);
+}
+function save(){
+  try{ localStorage.setItem(KEY_DATA, JSON.stringify(clienti)); }
+  catch(e){ alert('Spazio esaurito nel browser: non è stato possibile salvare. Scarica un backup.'); }
+}
+function normalizza(c){
+  return {
+    id: c.id || uid(),
+    nome: (c.nome || '').trim(),
+    telefono: (c.telefono || '').trim(),
+    email: (c.email || '').trim(),
+    citta: (c.citta || '').trim(),
+    stato: statoById(c.stato).id,
+    richiamo: c.richiamo || '',
+    note: c.note || '',
+    creato: (c.creato || oggi()).slice(0, 10),
+    aggiornato: c.aggiornato || c.creato || new Date().toISOString()
+  };
+}
+
+const esc = s => String(s == null ? '' : s)
+  .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+  .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+
+const MESI = ['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+function dataIt(iso){
+  if(!iso) return '—';
+  const [a,m,g] = iso.split('-');
+  return g + ' ' + MESI[(+m) - 1] + ' ' + a.slice(2);
+}
+function giorniDa(iso){ // >0 = nel futuro, 0 = oggi, <0 = scaduto
+  const d = new Date(iso + 'T00:00:00'), t = new Date(oggi() + 'T00:00:00');
+  return Math.round((d - t) / 86400000);
+}
+
+/* ============================================================
+   3. Dati dimostrativi (solo al primo avvio, se non c'è nulla)
+   ============================================================ */
+function seedDemo(){
+  if(localStorage.getItem(KEY_SEED) || clienti.length) return;
+  const base = [
+    ['Rossi Trasporti Srl','3401122334','info@rossitrasporti.it','Como','preventivo',  -52, '', 'Interessata a 3 furgoni, canone 48 mesi.'],
+    ['Marco Bianchi','3387654321','m.bianchi@gmail.com','Cantù','chiuso',            -74, '', 'Contratto firmato: Fiat 500 ibrida, 36 mesi.'],
+    ['Studio Legale Verdi','3311234567','studio@verdi.it','Milano','da_richiamare',   -18,  2, 'Richiamare dopo il CdA di lunedì.'],
+    ['Elena Conti','3479988776','elena.conti@libero.it','Erba','chiamato',            -11, '', 'Valuta permuta usato.'],
+    ['Autofficina Sala','3391472583','sala@officinasala.it','Lomazzo','interessato',   -6, '', 'Arrivata dal form del sito.'],
+    ['Giulia Ferrara','3335554433','g.ferrara@outlook.it','Como','da_richiamare',      -9, -3, 'Non risponde: riprovare in pausa pranzo.'],
+    ['Nuova Edilizia Spa','3486543210','amministrazione@nuovaedilizia.it','Varese','preventivo', -33, '', 'Preventivo inviato per 2 pick-up.'],
+    ['Davide Riva','3402223344','davide.riva@gmail.com','Cassina Rizzardi','perso',    -45, '', 'Ha scelto acquisto diretto.'],
+    ['Sara Moretti','3466677889','sara.moretti@gmail.com','Lecco','chiuso',           -120, '', 'Rinnovo previsto fra 30 mesi.'],
+    ['Bar Centrale snc','3451239876','barcentrale@pec.it','Appiano Gentile','interessato', -3, '', 'Richiesta via WhatsApp.'],
+    ['Luca Pozzi','3494561237','luca.pozzi@gmail.com','Como','chiamato',              -27, '', 'Vuole confronto tra due modelli.'],
+    ['Immobiliare Lario','3357778899','info@immobiliarelario.it','Como','da_richiamare',-14, 0, 'Richiamare oggi per firma.'],
+    ['Chiara Galli','3428887766','chiara.galli@gmail.com','Olgiate','interessato',     -1, '', 'Primo contatto in fiera.'],
+    ['Tecno Impianti Srl','3383334455','tecno@impianti.it','Saronno','chiuso',        -160, '', 'Due contratti attivi.'],
+    ['Paolo Fumagalli','3471112233','p.fumagalli@gmail.com','Mariano Comense','perso',-88, '', 'Budget non compatibile.'],
+    ['Ristorante Il Faro','3405556677','ilfaro@gmail.com','Cernobbio','preventivo',   -21, '', 'In attesa di risposta sul canone.'],
+    ['Anna Villa','3462224466','anna.villa@gmail.com','Como','chiamato',              -60, '', 'Ricontattare a fine anno.'],
+    ['Logistica Brianza','3399998877','ordini@logisticabrianza.it','Monza','interessato', -2, '', 'Flotta di 5 mezzi.']
+  ];
+  const ms = 86400000;
+  clienti = base.map(r => normalizza({
+    nome:r[0], telefono:r[1], email:r[2], citta:r[3], stato:r[4],
+    creato: new Date(Date.now() + r[5]*ms).toISOString().slice(0,10),
+    richiamo: r[6] === '' ? '' : new Date(Date.now() + r[6]*ms).toISOString().slice(0,10),
+    note:r[7]
+  }));
+  localStorage.setItem(KEY_SEED, '1');
+  save();
+}
+
+/* ============================================================
+   4. Grafici (SVG generato a mano, nessuna libreria)
+   - una sola tinta per serie: il confronto è di grandezza, non di identità
+   - etichette dirette su ogni barra + tooltip al passaggio del mouse
+   ============================================================ */
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+// Barra con estremità arrotondata (4px) solo dal lato del valore.
+function barPath(x, y, w, h, r, dir){
+  r = Math.max(0, Math.min(r, w, h / 2));
+  if(w <= 0.5) return `M${x} ${y}h${Math.max(w,0.5)}v${h}h${-Math.max(w,0.5)}z`;
+  if(dir === 'right'){
+    return `M${x} ${y}h${w-r}a${r} ${r} 0 0 1 ${r} ${r}v${h-2*r}a${r} ${r} 0 0 1 ${-r} ${r}h${-(w-r)}z`;
+  }
+  // dir === 'up'
+  return `M${x} ${y+h}v${-(h-r)}a${r} ${r} 0 0 1 ${r} ${-r}h${w-2*r}a${r} ${r} 0 0 1 ${r} ${r}v${h-r}z`;
+}
+function svgWrap(host, w, h, inner){
+  host.innerHTML =
+    `<svg class="chart" viewBox="0 0 ${w} ${h}" width="100%" height="${h}" role="img">${inner}</svg>`;
+}
+function tickValues(max){
+  if(max <= 0) return [0, 1];
+  const raw = max / 4;
+  const mag = Math.pow(10, Math.floor(Math.log10(raw)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(s => s >= raw) || mag * 10;
+  const top = Math.ceil(max / step) * step;   // la scala arriva sempre sopra il dato massimo
+  const out = [];
+  for(let v = 0; v <= top + 1e-9; v += step) out.push(Math.round(v * 100) / 100);
+  return out;
+}
+const plur = (n, s, p) => n + ' ' + (n === 1 ? s : p);
+
+/* --- Grafico 1: clienti per stato (barre orizzontali) --- */
+function renderStato(rows){
+  const host = document.getElementById('chartStato');
+  const W = Math.max(320, host.clientWidth || 520);
+  const LBL = Math.min(150, Math.max(104, W * 0.30));   // colonna etichette
+  const PAD_R = 46, ROW = 30, GAP = 8, TOP = 22;
+  const H = TOP + rows.length * (ROW + GAP);
+  const plotW = W - LBL - PAD_R;
+  const max = Math.max(1, ...rows.map(r => r.v));
+  const ticks = tickValues(max);
+  const sx = v => (v / (ticks[ticks.length - 1] || 1)) * plotW;
+
+  let s = '';
+  ticks.forEach(t => {
+    const x = LBL + sx(t);
+    s += `<line class="gridline" x1="${x}" y1="${TOP-8}" x2="${x}" y2="${H-GAP}"/>`;
+    s += `<text class="tick" x="${x}" y="${TOP-13}" text-anchor="middle">${t}</text>`;
+  });
+  s += `<line class="baseline" x1="${LBL}" y1="${TOP-8}" x2="${LBL}" y2="${H-GAP}"/>`;
+
+  rows.forEach((r, i) => {
+    const y = TOP + i * (ROW + GAP), w = sx(r.v), cy = y + ROW / 2;
+    s += `<text class="lbl" x="${LBL-12}" y="${cy+4}" text-anchor="end">${esc(r.label)}</text>`;
+    if(r.v > 0) s += `<path class="bar" d="${barPath(LBL+1, y+5, Math.max(w,2), ROW-10, 4, 'right')}"/>`;
+    s += `<text class="val" x="${LBL + Math.max(w,2) + 9}" y="${cy+4}">${r.v}</text>`;
+    s += `<rect class="hit" x="${LBL}" y="${y}" width="${plotW+PAD_R}" height="${ROW}"
+            data-tip="${esc(r.label)}|${plur(r.v,'cliente','clienti')} · ${r.pct}% del totale"></rect>`;
+  });
+  svgWrap(host, W, H, s);
+}
+
+/* --- Grafico 2: nuovi contatti per mese (colonne) --- */
+function renderTrend(serie){
+  const host = document.getElementById('chartTrend');
+  const W = Math.max(320, host.clientWidth || 520);
+  const PAD_L = 30, PAD_R = 8, TOP = 18, BOT = 30;
+  const H = 210, plotW = W - PAD_L - PAD_R, plotH = H - TOP - BOT;
+  const max = Math.max(1, ...serie.map(d => d.v));
+  const ticks = tickValues(max);
+  const top = ticks[ticks.length - 1] || 1;
+  const sy = v => TOP + plotH - (v / top) * plotH;
+  const slot = plotW / Math.max(1, serie.length);
+  const bw = Math.max(6, Math.min(46, slot - 10));      // 2px+ di respiro fra le colonne
+
+  let s = '';
+  ticks.forEach(t => {
+    const y = sy(t);
+    s += `<line class="gridline" x1="${PAD_L}" y1="${y}" x2="${W-PAD_R}" y2="${y}"/>`;
+    s += `<text class="tick" x="${PAD_L-8}" y="${y+4}" text-anchor="end">${t}</text>`;
+  });
+  s += `<line class="baseline" x1="${PAD_L}" y1="${sy(0)}" x2="${W-PAD_R}" y2="${sy(0)}"/>`;
+
+  // etichette a passo regolare, ancorate all'ultimo mese: mai due affiancate
+  const passo = slot < 34 ? (slot < 24 ? 3 : 2) : 1;
+  const ultimo = serie.length - 1;
+  serie.forEach((d, i) => {
+    const cx = PAD_L + slot * i + slot / 2, y = sy(d.v), h = sy(0) - y;
+    if(d.v > 0) s += `<path class="bar" d="${barPath(cx-bw/2, y, bw, Math.max(h,2), 4, 'up')}"/>`;
+    if((ultimo - i) % passo === 0)
+      s += `<text class="tick" x="${cx}" y="${H-10}" text-anchor="middle">${d.label}</text>`;
+    if(d.v > 0 && serie.length <= 12)
+      s += `<text class="val" x="${cx}" y="${y-6}" text-anchor="middle">${d.v}</text>`;
+    s += `<rect class="hit" x="${cx-slot/2}" y="${TOP}" width="${slot}" height="${plotH}"
+            data-tip="${esc(d.full)}|${plur(d.v,'nuovo contatto','nuovi contatti')}"></rect>`;
+  });
+  svgWrap(host, W, H, s);
+}
+
+/* --- Grafico 3: funnel (rampa ordinale a una tinta) --- */
+function renderFunnel(stadi){
+  const host = document.getElementById('chartFunnel');
+  const W = Math.max(320, host.clientWidth || 700);
+  const LBL = Math.min(170, Math.max(112, W * 0.24));
+  const PAD_R = 120, ROW = 34, GAP = 10, TOP = 6;
+  const H = TOP + stadi.length * (ROW + GAP);
+  const plotW = W - LBL - PAD_R;
+  const max = Math.max(1, stadi[0].v);
+  const ramp = ['var(--step-1)','var(--step-2)','var(--step-3)','var(--step-4)'];
+
+  let s = '';
+  stadi.forEach((st, i) => {
+    const y = TOP + i * (ROW + GAP), w = (st.v / max) * plotW, cy = y + ROW / 2;
+    s += `<text class="lbl" x="${LBL-12}" y="${cy+4}" text-anchor="end">${esc(st.label)}</text>`;
+    if(st.v > 0)
+      s += `<path d="${barPath(LBL, y+3, Math.max(w,2), ROW-6, 4, 'right')}" fill="${ramp[i%4]}"/>`;
+    s += `<text class="val" x="${LBL + Math.max(w,2) + 10}" y="${cy+4}">${st.v}`
+       + (i > 0 ? `  <tspan fill="var(--muted)">${st.conv}% del passo prec.</tspan>` : '')
+       + `</text>`;
+    s += `<rect class="hit" x="${LBL}" y="${y}" width="${plotW+PAD_R}" height="${ROW}"
+            data-tip="${esc(st.label)}|${plur(st.v,'cliente','clienti')} · ${st.tot}% dei contatti"></rect>`;
+  });
+  svgWrap(host, W, H, s);
+}
+
+/* --- tooltip condiviso --- */
+(function tooltip(){
+  const tip = document.getElementById('tip');
+  document.addEventListener('mousemove', e => {
+    const hit = e.target.closest ? e.target.closest('.hit') : null;
+    if(!hit){ tip.style.display = 'none'; return; }
+    const [t, v] = (hit.getAttribute('data-tip') || '|').split('|');
+    tip.innerHTML = `${esc(t)}<br><b>${esc(v)}</b>`;
+    tip.style.display = 'block';
+    const r = tip.getBoundingClientRect();
+    tip.style.left = Math.min(e.clientX + 14, window.innerWidth - r.width - 8) + 'px';
+    tip.style.top  = Math.max(8, e.clientY - r.height - 12) + 'px';
+  });
+  document.addEventListener('scroll', () => { tip.style.display = 'none'; }, true);
+})();
+
+/* ============================================================
+   5. Calcolo dei dati mostrati
+   ============================================================ */
+function periodoGiorni(){ return filtri.period === 'all' ? null : parseInt(filtri.period, 10); }
+
+function nelPeriodo(c){
+  const g = periodoGiorni();
+  if(g === null) return true;
+  return giorniDa(c.creato) > -g - 1;
+}
+function visibili(){                       // filtri completi: periodo + stato + ricerca
+  const q = filtri.q.trim().toLowerCase();
+  return clienti.filter(c => {
+    if(!nelPeriodo(c)) return false;
+    if(filtri.stato !== 'all' && c.stato !== filtri.stato) return false;
+    if(!q) return true;
+    return [c.nome, c.telefono, c.email, c.citta, c.note, statoById(c.stato).label]
+      .join(' ').toLowerCase().includes(q);
+  });
+}
+function perGrafici(){                     // i grafici seguono periodo + ricerca, non il filtro di stato
+  const q = filtri.q.trim().toLowerCase();
+  return clienti.filter(c => {
+    if(!nelPeriodo(c)) return false;
+    if(!q) return true;
+    return [c.nome, c.telefono, c.email, c.citta, c.note, statoById(c.stato).label]
+      .join(' ').toLowerCase().includes(q);
+  });
+}
+
+function serieMesi(rows){
+  const g = periodoGiorni();
+  let n = g === null ? 12 : Math.min(12, Math.max(3, Math.ceil(g / 30)));
+  const out = [];
+  const ora = new Date();
+  for(let i = n - 1; i >= 0; i--){
+    const d = new Date(ora.getFullYear(), ora.getMonth() - i, 1);
+    const chiave = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+    out.push({
+      key: chiave,
+      label: MESI[d.getMonth()] + (d.getMonth() === 0 || i === n - 1 ? ' ' + String(d.getFullYear()).slice(2) : ''),
+      full: MESI[d.getMonth()] + ' ' + d.getFullYear(),
+      v: 0
+    });
+  }
+  const idx = new Map(out.map((o, i) => [o.key, i]));
+  rows.forEach(c => {
+    const k = (c.creato || '').slice(0, 7);
+    if(idx.has(k)) out[idx.get(k)].v++;
+  });
+  return out;
+}
+
+function calcolaFunnel(rows){
+  const tot = rows.length;
+  const conta = min => rows.filter(c => statoById(c.stato).rank >= min).length;
+  const stadi = [
+    {label:'Contatti',    v: tot},
+    {label:'Chiamati',    v: conta(1)},
+    {label:'Preventivi',  v: conta(2)},
+    {label:'Contratti',   v: conta(3)}
+  ];
+  stadi.forEach((s, i) => {
+    const prev = i > 0 ? stadi[i-1].v : s.v;
+    s.conv = prev ? Math.round(s.v / prev * 100) : 0;
+    s.tot  = tot ? Math.round(s.v / tot * 100) : 0;
+  });
+  return stadi;
+}
+
+/* ============================================================
+   6. Render della pagina
+   ============================================================ */
+function render(){
+  const rowsG = perGrafici();
+  const rowsT = visibili();
+  const tot = rowsG.length;
+  const per = id => rowsG.filter(c => c.stato === id).length;
+
+  // --- KPI ---
+  const scaduti = clienti.filter(c => c.stato === 'da_richiamare' && c.richiamo && giorniDa(c.richiamo) < 0).length;
+  const chiusi = per('chiuso');
+  const tasso = tot ? Math.round(chiusi / tot * 100) : 0;
+  const kpi = [
+    {label:'Clienti totali', value: tot, hint: etichettaPeriodo(), hero:true},
+    {label:'Interessati',    value: per('interessato'),   hint:'in attesa di prima chiamata', color:'var(--info)'},
+    {label:'Chiamati',       value: per('chiamato'),      hint:'già contattati', color:'var(--violet)'},
+    {label:'Da richiamare',  value: per('da_richiamare'),
+      hint: scaduti ? '⚠ ' + plur(scaduti,'richiamo scaduto','richiami scaduti') : 'nessun richiamo scaduto',
+      color:'var(--warning)'},
+    {label:'Preventivi',     value: per('preventivo'),    hint:'offerte inviate', color:'var(--aqua)'},
+    {label:'Contratti',      value: chiusi,               hint:'tasso di conversione ' + tasso + '%', color:'var(--good)'}
+  ];
+  document.getElementById('kpis').innerHTML = kpi.map(k => `
+    <div class="kpi${k.hero ? ' hero' : ''}">
+      <div class="label">${k.color ? `<span class="dot" style="background:${k.color}"></span>` : ''}${esc(k.label)}</div>
+      <div class="value">${k.value}</div>
+      <div class="hint">${esc(k.hint)}</div>
+    </div>`).join('');
+
+  // --- grafici ---
+  const rowsStato = STATI.map(s => {
+    const v = per(s.id);
+    return {label:s.label, color:s.color, v, pct: tot ? Math.round(v / tot * 100) : 0};
+  });
+  renderStato(rowsStato);
+  const serie = serieMesi(rowsG);
+  renderTrend(serie);
+  document.getElementById('trendSub').textContent =
+    `Contatti acquisiti mese per mese (ultimi ${serie.length} mesi).`;
+  const stadi = calcolaFunnel(rowsG);
+  renderFunnel(stadi);
+  document.getElementById('funnelSub').textContent =
+    `Dal primo contatto al contratto firmato: ${stadi[0].v} contatti → ${stadi[3].v} contratti (${tasso}%).`;
+  document.getElementById('statoSub').textContent =
+    tot ? `Quanti clienti ci sono in ogni fase — ${plur(tot,'cliente','clienti')} ${etichettaPeriodo().toLowerCase()}.`
+        : 'Nessun cliente nel periodo selezionato.';
+
+  // --- da richiamare ---
+  const cbs = clienti
+    .filter(c => c.stato === 'da_richiamare' || (c.richiamo && c.stato !== 'chiuso' && c.stato !== 'perso'))
+    .sort((a, b) => (a.richiamo || '9999') < (b.richiamo || '9999') ? -1 : 1);
+  const host = document.getElementById('callbacks');
+  document.getElementById('cbCount').textContent = cbs.length ? plur(cbs.length,'cliente','clienti') : '';
+  host.innerHTML = cbs.length ? cbs.map(c => {
+    const d = c.richiamo ? giorniDa(c.richiamo) : null;
+    const cls = d === null ? '' : d < 0 ? ' late' : d === 0 ? ' today' : '';
+    const quando = c.richiamo
+      ? (d < 0 ? `<span style="color:var(--critical)">⚠ scaduto da ${plur(-d,'giorno','giorni')}</span>`
+        : d === 0 ? `<span style="color:var(--warning)">⏱ oggi</span>`
+        : `fra ${plur(d,'giorno','giorni')}`)
+      : '<span style="color:var(--muted)">senza data</span>';
+    return `<div class="cb${cls}" data-id="${c.id}" role="button" tabindex="0">
+      <span class="dot" style="background:${statoById(c.stato).color}"></span>
+      <span>
+        <span class="who">${esc(c.nome)}</span>
+        <span class="meta"> · ${esc(c.citta || '—')}${c.telefono ? ' · ' + esc(c.telefono) : ''}</span>
+      </span>
+      <span class="when">${quando}<br><span class="meta">${dataIt(c.richiamo)}</span></span>
+    </div>`;
+  }).join('') : '<div class="empty">Nessun richiamo in programma.</div>';
+
+  // --- tabella ---
+  const ord = [...rowsT].sort(confronta);
+  document.getElementById('tableCount').textContent = plur(ord.length,'cliente','clienti');
+  document.getElementById('filterCount').textContent =
+    ord.length === clienti.length ? plur(clienti.length,'cliente in archivio','clienti in archivio')
+                                  : `${ord.length} di ${clienti.length} clienti`;
+  document.getElementById('tbody').innerHTML = ord.map(c => {
+    const s = statoById(c.stato);
+    const d = c.richiamo ? giorniDa(c.richiamo) : null;
+    const rich = c.richiamo
+      ? `<span${d < 0 ? ' style="color:var(--critical)"' : d === 0 ? ' style="color:var(--warning)"' : ''}>${dataIt(c.richiamo)}</span>`
+      : '—';
+    // ogni cella ha un unico figlio (.v): in vista mobile la cella è un flex
+    // e più figli finirebbero affiancati ignorando gli a capo.
+    return `<tr data-id="${c.id}">
+      <td><span class="v"><strong>${esc(c.nome)}</strong>${c.note ? `<br><span class="nota">${esc(c.note.slice(0,60))}${c.note.length>60?'…':''}</span>` : ''}</span></td>
+      <td class="num" data-l="Contatti"><span class="v">${c.telefono ? esc(c.telefono) : ''}${c.telefono && c.email ? '<br>' : ''}${c.email ? `<span class="mail">${esc(c.email)}</span>` : ''}${!c.telefono && !c.email ? '—' : ''}</span></td>
+      <td data-l="Città"><span class="v">${esc(c.citta || '—')}</span></td>
+      <td data-l="Stato"><span class="v"><span class="badge"><span class="dot" style="background:${s.color}"></span>${s.icon} ${esc(s.label)}</span></span></td>
+      <td class="num" data-l="Richiamo"><span class="v">${rich}</span></td>
+      <td class="num" data-l="Inserito"><span class="v">${dataIt(c.creato)}</span></td>
+      <td><span class="v"><div class="row-actions"><button class="btn btn-ghost btn-sm js-edit">Apri</button></div></span></td>
+    </tr>`;
+  }).join('');
+  document.getElementById('tableEmpty').style.display = ord.length ? 'none' : 'block';
+}
+
+function etichettaPeriodo(){
+  return {'30':'Ultimi 30 giorni','90':'Ultimi 90 giorni','365':'Ultimi 12 mesi','all':'Tutto lo storico'}[filtri.period];
+}
+function confronta(a, b){
+  const col = ordine.col;
+  let va, vb;
+  if(col === 'stato'){ va = statoById(a.stato).rank; vb = statoById(b.stato).rank; }
+  else if(col === 'contatti'){ va = a.telefono || a.email || ''; vb = b.telefono || b.email || ''; }
+  else if(col === 'richiamo'){ va = a.richiamo || '9999-99-99'; vb = b.richiamo || '9999-99-99'; }
+  else { va = (a[col] || '').toString().toLowerCase(); vb = (b[col] || '').toString().toLowerCase(); }
+  if(va < vb) return -1 * ordine.dir;
+  if(va > vb) return  1 * ordine.dir;
+  return 0;
+}
+
+/* ============================================================
+   7. Interazioni: filtri, modale, esportazioni
+   ============================================================ */
+const backdrop = document.getElementById('backdrop');
+const modal    = document.getElementById('clientModal');
+const form     = document.getElementById('clientForm');
+
+function popolaSelect(){
+  document.getElementById('f-stato').innerHTML =
+    STATI.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+  const f = document.getElementById('fStato');
+  f.innerHTML = '<option value="all">Tutti gli stati</option>' +
+    STATI.map(s => `<option value="${s.id}">${s.label}</option>`).join('');
+}
+function apriModale(id){
+  const c = id ? clienti.find(x => x.id === id) : null;
+  document.getElementById('modalTitle').textContent = c ? 'Modifica cliente' : 'Nuovo cliente';
+  document.getElementById('btnDelete').style.display = c ? 'inline-flex' : 'none';
+  form.reset();
+  form.id.value       = c ? c.id : '';
+  form.nome.value     = c ? c.nome : '';
+  form.telefono.value = c ? c.telefono : '';
+  form.email.value    = c ? c.email : '';
+  form.citta.value    = c ? c.citta : '';
+  form.stato.value    = c ? c.stato : 'interessato';
+  form.richiamo.value = c ? c.richiamo : '';
+  form.creato.value   = c ? c.creato : oggi();
+  form.note.value     = c ? c.note : '';
+  modal.style.display = 'block'; backdrop.style.display = 'block';
+  setTimeout(() => form.nome.focus(), 30);
+}
+function chiudiModale(){ modal.style.display = 'none'; backdrop.style.display = 'none'; }
+
+form.addEventListener('submit', e => {
+  e.preventDefault();
+  const dati = {
+    id: form.id.value || uid(),
+    nome: form.nome.value, telefono: form.telefono.value, email: form.email.value,
+    citta: form.citta.value, stato: form.stato.value, richiamo: form.richiamo.value,
+    creato: form.creato.value || oggi(), note: form.note.value,
+    aggiornato: new Date().toISOString()
+  };
+  const i = clienti.findIndex(c => c.id === dati.id);
+  if(i >= 0) clienti[i] = normalizza(dati); else clienti.unshift(normalizza(dati));
+  save(); chiudiModale(); render();
+});
+document.getElementById('btnDelete').onclick = () => {
+  const id = form.id.value;
+  const c = clienti.find(x => x.id === id);
+  if(!c || !confirm(`Eliminare definitivamente “${c.nome}”?`)) return;
+  clienti = clienti.filter(x => x.id !== id);
+  save(); chiudiModale(); render();
+};
+document.getElementById('modalClose').onclick = chiudiModale;
+backdrop.onclick = chiudiModale;
+document.addEventListener('keydown', e => { if(e.key === 'Escape') chiudiModale(); });
+
+document.getElementById('btnNew').onclick = () => apriModale(null);
+document.getElementById('tbody').addEventListener('click', e => {
+  const tr = e.target.closest('tr[data-id]');
+  if(tr) apriModale(tr.dataset.id);
+});
+document.getElementById('callbacks').addEventListener('click', e => {
+  const el = e.target.closest('.cb[data-id]');
+  if(el) apriModale(el.dataset.id);
+});
+document.querySelectorAll('th[data-sort]').forEach(th => {
+  th.onclick = () => {
+    const col = th.dataset.sort;
+    ordine = {col, dir: ordine.col === col ? -ordine.dir : (col === 'creato' ? -1 : 1)};
+    render();
+  };
+});
+
+document.getElementById('fPeriod').onchange = e => { filtri.period = e.target.value; render(); };
+document.getElementById('fStato').onchange  = e => { filtri.stato  = e.target.value; render(); };
+let tSearch;
+document.getElementById('fSearch').oninput = e => {
+  clearTimeout(tSearch);
+  const v = e.target.value;
+  tSearch = setTimeout(() => { filtri.q = v; render(); }, 180);
+};
+
+/* --- esportazioni --- */
+function scarica(nome, contenuto, tipo){
+  const url = URL.createObjectURL(new Blob([contenuto], {type: tipo}));
+  const a = document.createElement('a');
+  a.href = url; a.download = nome; document.body.appendChild(a); a.click();
+  a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+document.getElementById('btnExport').onclick = () => {
+  const col = ['Nome','Telefono','Email','Città','Stato','Richiamo','Inserito','Note'];
+  const q = v => '"' + String(v == null ? '' : v).replace(/"/g,'""') + '"';
+  const righe = visibili().sort(confronta).map(c =>
+    [c.nome,c.telefono,c.email,c.citta,statoById(c.stato).label,c.richiamo,c.creato,c.note].map(q).join(';'));
+  scarica(`galvarent-clienti-${oggi()}.csv`, '﻿' + [col.map(q).join(';'), ...righe].join('\r\n'),
+          'text/csv;charset=utf-8');
+};
+document.getElementById('btnBackup').onclick = () =>
+  scarica(`galvarent-backup-${oggi()}.json`, JSON.stringify({versione:1, esportato:new Date().toISOString(), clienti}, null, 2),
+          'application/json');
+document.getElementById('btnRestore').onclick = () => document.getElementById('restoreFile').click();
+document.getElementById('restoreFile').onchange = e => {
+  const file = e.target.files[0];
+  if(!file) return;
+  const fr = new FileReader();
+  fr.onload = () => {
+    try{
+      const dati = JSON.parse(fr.result);
+      const lista = Array.isArray(dati) ? dati : dati.clienti;
+      if(!Array.isArray(lista)) throw new Error('formato');
+      if(!confirm(`Il backup contiene ${lista.length} clienti e sostituirà i dati attuali (${clienti.length}). Procedere?`)) return;
+      clienti = lista.map(normalizza); save(); render();
+    }catch(err){ alert('File di backup non valido.'); }
+    finally{ e.target.value = ''; }
+  };
+  fr.readAsText(file);
+};
+
+/* --- ridisegno dei grafici al cambio di larghezza --- */
+let tResize;
+window.addEventListener('resize', () => { clearTimeout(tResize); tResize = setTimeout(render, 150); });
+
+/* ============================================================
+   8. Accesso con PIN (protezione locale, non sostituisce un login server)
+   ============================================================ */
+const gate = document.getElementById('gate');
+async function hash(txt){
+  try{
+    const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode('gr:' + txt));
+    return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2,'0')).join('');
+  }catch(e){                                   // browser senza crypto.subtle (es. http non sicuro)
+    let h = 5381;
+    for(const ch of 'gr:' + txt) h = ((h * 33) ^ ch.charCodeAt(0)) >>> 0;
+    return 'f' + h.toString(16);
+  }
+}
+function sbloccato(){
+  gate.style.display = 'none';
+  sessionStorage.setItem('galvarent_unlocked', '1');
+  seedDemo(); popolaSelect(); render();
+}
+function avviaGate(){
+  const impostato = localStorage.getItem(KEY_PIN);
+  if(!impostato){
+    document.getElementById('gateTitle').textContent = 'Imposta un PIN';
+    document.getElementById('gateHint').textContent  = 'Primo accesso: scegli un PIN di almeno 4 cifre.';
+    document.getElementById('gatePin2Wrap').style.display = 'block';
+  }
+  if(sessionStorage.getItem('galvarent_unlocked') === '1' && impostato){ sbloccato(); return; }
+  setTimeout(() => document.getElementById('gatePin').focus(), 60);
+}
+document.getElementById('gateForm').addEventListener('submit', async e => {
+  e.preventDefault();
+  const err = document.getElementById('gateErr');
+  const pin = document.getElementById('gatePin').value.trim();
+  const salvato = localStorage.getItem(KEY_PIN);
+  if(!salvato){
+    const pin2 = document.getElementById('gatePin2').value.trim();
+    if(pin.length < 4){ err.textContent = 'Il PIN deve avere almeno 4 caratteri.'; return; }
+    if(pin !== pin2){ err.textContent = 'I due PIN non coincidono.'; return; }
+    localStorage.setItem(KEY_PIN, await hash(pin));
+    err.textContent = ''; sbloccato(); return;
+  }
+  if(await hash(pin) === salvato){ err.textContent = ''; sbloccato(); }
+  else { err.textContent = 'PIN errato.'; document.getElementById('gatePin').select(); }
+});
+document.getElementById('btnLock').onclick = () => {
+  sessionStorage.removeItem('galvarent_unlocked');
+  location.reload();
+};
+
+/* ============================================================
+   9. Avvio
+   ============================================================ */
+load();
+avviaGate();
+
+})();
+</script>
+</body>
+</html>
